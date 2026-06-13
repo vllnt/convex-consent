@@ -1,0 +1,26 @@
+# @vllnt/convex-consent
+
+> Append-only consent ledger (GDPR Art. 6/7) — record, withdraw, and gate consent per subject + purpose as a Convex component
+
+`@vllnt/convex-consent` is a publishable Convex component. It targets `convex@^1.41.0`.
+It stores two sandboxed tables. `consentEvents` is the append-only legal ledger (one immutable row per grant/deny/withdraw, never mutated — the GDPR proof — holding an opaque host `subjectRef`, a `purpose` key, a `decision` of `granted`/`denied`/`withdrawn`, the policy `version`, opaque host `proof`, and a server `at` timestamp). `consentState` is the derived current-decision projection — exactly one row per `(subjectRef, purpose)` — the O(1) runtime gate. A host mutation calls `record(subjectRef, purpose, decision, { version?, proof? })` (appends an event + updates the projection) or `withdraw(subjectRef, purpose, proof?)` (GDPR Art. 7(3) — appends a `withdrawn` event, but only when a grant is currently held, else throws `NO_CONSENT`/`NOT_GRANTED`). Before processing personal data the host calls `check(subjectRef, purpose, requiredVersion?)` — the gate — which returns `granted`/`stale` so a grant for an older policy `version` re-prompts; `getState`, `getStatesForSubject`, and paginated `history` read the record. Time is read from the server clock inside every handler — no caller-supplied clock. A bounded, self-rescheduling `prune` (and a built-in daily cron) sweeps superseded ledger events past a retention window; the current-state projection is never pruned. The host owns the subject, the purpose meaning, auth, and the `proof` type (the client is generic over it, with an optional `proofValidator` parser narrowing the opaque stored value at the boundary — never a `v.any()` dump); the component owns only the consent record. Mount-safe: it runs correctly under multiple named `app.use` mounts.
+
+## Docs
+
+- [README](README.md): Project overview, installation, usage examples, architecture
+- [API Reference](docs/API.md): Public class methods, return shapes, error codes, cron
+- [Changelog](CHANGELOG.md): Version history and release notes
+- [Contributing](CONTRIBUTING.md): Development setup, validation commands, release workflow
+
+## Examples
+
+- [Example component wrapper](example/convex/example.ts): Host-app wrapper functions
+- [Example tests](example/convex/example.test.ts): End-to-end usage coverage with `convex-test`
+
+## Optional
+
+- [AGENTS](AGENTS.md): Canonical agent instructions for this repository
+- [Security Policy](SECURITY.md): Vulnerability reporting policy
+- [Code of Conduct](CODE_OF_CONDUCT.md): Community participation guidelines
+- [License](LICENSE): MIT license
+- [Full source bundle](llms-full.txt): Aggregated README, changelog, API docs, and key source files
