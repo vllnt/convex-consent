@@ -146,9 +146,7 @@ This component ships **backend-only** — no `./react` entry. Consent state is r
 through ordinary reactive `useQuery` over the host's own re-exported `check` /
 `getState` function refs (those return live in Convex), so a dedicated hook would
 wrap the host's `api` with no added value. Consent proof is sensitive and the
-gating is server-side, so there is no safe client surface to add. If a future
-consumer needs a shared management surface the analysis will be re-run (per the
-Component Standard's front-end tooling decision).
+gating is server-side, so there is no safe client surface to add.
 
 ## Security Model
 
