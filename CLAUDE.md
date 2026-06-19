@@ -118,12 +118,11 @@ consent).
 
 | Changed | Update in the same commit |
 |---------|--------------------------|
-| Public API (record/withdraw/check/getState/getStatesForSubject/history/prune signatures) | README API Reference table, `docs/API.md`, `llms.txt` context, regenerate `llms-full.txt` |
+| Public API (record/withdraw/check/getState/getStatesForSubject/history/prune signatures) | README API Reference table, `docs/API.md`, `llms.txt` context |
 | Config options / defaults (validators, defaultVersion, retention, batch) | README API Reference, `docs/API.md` constructor section |
 | Schema / tables / indexes | README Architecture, `docs/API.md` |
 | Error codes | `docs/API.md` → `## Error codes` table |
 | `peerDependencies.convex` version | `llms.txt` context line (`convex@^X.Y.Z`), `docs/API.md` Compatibility line, README Installation peer note |
 | Decisions / version-staleness / append-only semantics | `docs/API.md` mutation+query sections, Key design decisions above |
-| Any change | `pnpm generate:llms` to keep `llms-full.txt` current |
 
 Grep old values before committing (e.g. after a `peerDependencies.convex` bump, `git grep "1.41.0"` → only the new range survives).
