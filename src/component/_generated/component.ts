@@ -24,6 +24,13 @@ import type { FunctionReference } from "convex/server";
 export type ComponentApi<Name extends string | undefined = string | undefined> =
   {
     mutations: {
+      prune: FunctionReference<
+        "mutation",
+        "internal",
+        { batch: number; before?: number },
+        number,
+        Name
+      >;
       record: FunctionReference<
         "mutation",
         "internal",
@@ -42,13 +49,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "internal",
         { proof?: any; purpose: string; subjectRef: string },
         { at: number },
-        Name
-      >;
-      prune: FunctionReference<
-        "mutation",
-        "internal",
-        { batch: number; before?: number },
-        number,
         Name
       >;
     };

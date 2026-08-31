@@ -53,7 +53,7 @@ export const record = mutation({
     if (existing === null) {
       await ctx.db.insert("consentState", projection);
     } else {
-      await ctx.db.patch(existing._id, projection);
+      await ctx.db.patch("consentState", existing._id, projection);
     }
     return { at };
   },
@@ -107,7 +107,7 @@ export const withdraw = mutation({
       proof: args.proof,
       at,
     });
-    await ctx.db.patch(state._id, { decision: "withdrawn", at });
+    await ctx.db.patch("consentState", state._id, { decision: "withdrawn", at });
     return { at };
   },
 });
@@ -136,7 +136,7 @@ export const prune = mutation({
       .take(args.batch);
 
     for (const row of stale) {
-      await ctx.db.delete(row._id);
+      await ctx.db.delete("consentEvents", row._id);
     }
     const removed = stale.length;
 
