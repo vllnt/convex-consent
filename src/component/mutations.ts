@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { api } from "./_generated/api";
 import { mutation } from "./_generated/server";
+import { DEFAULT_RETENTION_MS, MAX_PRUNE_BATCH } from "../shared";
 import { consentDecision, jsonValue } from "./validators";
 
 /**
@@ -129,7 +130,13 @@ export const prune = mutation({
   args: { before: v.optional(v.number()), batch: v.number() },
   returns: v.number(),
   handler: async (ctx, args) => {
-    const before = args.before ?? Date.now();
+    if (!Number.isFinite(args.batch) || !Number.isInteger(args.batch) || args.batch < 1 || args.batch > MAX_PRUNE_BATCH) {
+      throw new ConvexError({ code: "INVALID_BATCH", message: `batch must be an integer between 1 and ${MAX_PRUNE_BATCH}` });
+    }
+    if (args.before !== undefined && !Number.isFinite(args.before)) {
+      throw new ConvexError({ code: "INVALID_BEFORE", message: "before must be finite" });
+    }
+    const before = args.before ?? Date.now() - DEFAULT_RETENTION_MS;
     const stale = await ctx.db
       .query("consentEvents")
       .withIndex("by_at", (q) => q.lt("at", before))

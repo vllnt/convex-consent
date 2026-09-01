@@ -473,7 +473,7 @@ describe("consent — prune (bounded, ledger-only, self-rescheduling)", () => {
     expect(state?.decision).toBe("denied");
   });
 
-  test("prune with no cutoff defaults to server now", async () => {
+  test("prune with no cutoff honors the 365-day retention window", async () => {
     const t = setup();
     await t.mutation(api.example.record, {
       subjectRef: "d",
@@ -481,8 +481,24 @@ describe("consent — prune (bounded, ledger-only, self-rescheduling)", () => {
       decision: "granted",
       version: "1",
     });
-    vi.setSystemTime(1_000);
+    vi.setSystemTime(31_536_000_000);
+    expect(await t.mutation(api.example.prune, {})).toBe(0);
+    vi.setSystemTime(31_536_000_001);
     expect(await t.mutation(api.example.prune, {})).toBe(1);
+  });
+
+  test.each([Number.NaN, 0, -1, 1.5, 501])("rejects invalid batch %s", async (batch) => {
+    const t = setup();
+    await expect(t.mutation(api.example.prune, { batch })).rejects.toThrow(
+      /INVALID_BATCH|integer between/,
+    );
+  });
+
+  test("rejects a non-finite cutoff", async () => {
+    const t = setup();
+    await expect(
+      t.mutation(api.example.prune, { before: Number.NaN }),
+    ).rejects.toThrow(/INVALID_BEFORE|finite/);
   });
 
   test("prune on an empty ledger returns 0", async () => {

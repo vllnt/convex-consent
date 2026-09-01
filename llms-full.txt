@@ -163,6 +163,18 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+
+- Apply the documented 365-day default ledger retention and reject invalid prune batches to
+  prevent premature proof deletion and scheduler loops.
+
+### Changed
+
+- Treat Convex `_generated` output as CLI-owned, exclude it from formatting, and expose a
+  dedicated codegen script.
+- Refresh all direct dependencies to their latest compatible releases for canary validation.
+- Require `convex@^1.45.0` and update `convex-test` to `^0.0.56`.
+
 ## [0.1.0] - 2026-06-14
 
 ### Added
@@ -256,8 +268,8 @@ audit trail stays meaningful.
 
 ### `prune(ctx, opts?) → number`
 
-`opts`: `{ before?: number; batch?: number }` (defaults: `before = Date.now()`,
-`batch = 200`).
+`opts`: `{ before?: number; batch?: number }` (defaults: `before = Date.now() - 365 days`,
+`batch = 200`; valid batch range: 1–500).
 
 Delete up to `batch` **ledger events** whose `at < before`, oldest first via the
 `by_at` index, and return the count removed in the first pass. Only the historical
@@ -366,6 +378,7 @@ export const DEFAULT_RETENTION_MS = 31_536_000_000;
 
 /** Default page size for a `prune` pass before the sweep self-reschedules. */
 export const DEFAULT_PRUNE_BATCH = 200;
+export const MAX_PRUNE_BATCH = 500;
 
 ```
 
@@ -903,6 +916,7 @@ export const consentCheckView = v.object({
 import { ConvexError, v } from "convex/values";
 import { api } from "./_generated/api";
 import { mutation } from "./_generated/server";
+import { DEFAULT_RETENTION_MS, MAX_PRUNE_BATCH } from "../shared";
 import { consentDecision, jsonValue } from "./validators";
 
 /**
@@ -955,7 +969,7 @@ export const record = mutation({
     if (existing === null) {
       await ctx.db.insert("consentState", projection);
     } else {
-      await ctx.db.patch(existing._id, projection);
+      await ctx.db.patch("consentState", existing._id, projection);
     }
     return { at };
   },
@@ -1009,7 +1023,7 @@ export const withdraw = mutation({
       proof: args.proof,
       at,
     });
-    await ctx.db.patch(state._id, { decision: "withdrawn", at });
+    await ctx.db.patch("consentState", state._id, { decision: "withdrawn", at });
     return { at };
   },
 });
@@ -1031,14 +1045,20 @@ export const prune = mutation({
   args: { before: v.optional(v.number()), batch: v.number() },
   returns: v.number(),
   handler: async (ctx, args) => {
-    const before = args.before ?? Date.now();
+    if (!Number.isFinite(args.batch) || !Number.isInteger(args.batch) || args.batch < 1 || args.batch > MAX_PRUNE_BATCH) {
+      throw new ConvexError({ code: "INVALID_BATCH", message: `batch must be an integer between 1 and ${MAX_PRUNE_BATCH}` });
+    }
+    if (args.before !== undefined && !Number.isFinite(args.before)) {
+      throw new ConvexError({ code: "INVALID_BEFORE", message: "before must be finite" });
+    }
+    const before = args.before ?? Date.now() - DEFAULT_RETENTION_MS;
     const stale = await ctx.db
       .query("consentEvents")
       .withIndex("by_at", (q) => q.lt("at", before))
       .take(args.batch);
 
     for (const row of stale) {
-      await ctx.db.delete(row._id);
+      await ctx.db.delete("consentEvents", row._id);
     }
     const removed = stale.length;
 
