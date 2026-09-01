@@ -54,8 +54,8 @@ audit trail stays meaningful.
 
 ### `prune(ctx, opts?) → number`
 
-`opts`: `{ before?: number; batch?: number }` (defaults: `before = Date.now()`,
-`batch = 200`).
+`opts`: `{ before?: number; batch?: number }` (defaults: `before = Date.now() - 365 days`,
+`batch = 200`; valid batch range: 1–500).
 
 Delete up to `batch` **ledger events** whose `at < before`, oldest first via the
 `by_at` index, and return the count removed in the first pass. Only the historical
