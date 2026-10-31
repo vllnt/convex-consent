@@ -1,8 +1,20 @@
 import { ConvexError, v } from "convex/values";
-import { api } from "./_generated/api";
-import { mutation } from "./_generated/server";
-import { DEFAULT_RETENTION_MS, MAX_PRUNE_BATCH } from "../shared";
-import { consentDecision, jsonValue } from "./validators";
+import { api } from "./_generated/api.js";
+import { mutation } from "./_generated/server.js";
+import { DEFAULT_RETENTION_MS, MAX_PRUNE_BATCH } from "../shared.js";
+import { consentDecision, jsonValue } from "./validators.js";
+
+/** Reject empty identifiers: an empty ref/purpose/version would store a meaningless ledger row. */
+function assertNonEmpty(fields: Record<string, string>): void {
+  for (const [name, value] of Object.entries(fields)) {
+    if (value === "") {
+      throw new ConvexError({
+        code: "INVALID_ARGUMENT",
+        message: `${name} must be non-empty`,
+      });
+    }
+  }
+}
 
 /**
  * Record a consent decision for a `(subjectRef, purpose)` pair. Appends one
@@ -17,6 +29,9 @@ import { consentDecision, jsonValue } from "./validators";
  * the client boundary); `proof` is opaque host evidence stored verbatim. The
  * ledger row is the legal record — it is never mutated, only swept by retention
  * `prune`.
+ *
+ * @throws `ConvexError({ code: "INVALID_ARGUMENT" })` when `subjectRef`, `purpose`
+ *   or `version` is empty.
  */
 export const record = mutation({
   args: {
@@ -28,6 +43,11 @@ export const record = mutation({
   },
   returns: v.object({ at: v.number() }),
   handler: async (ctx, args) => {
+    assertNonEmpty({
+      subjectRef: args.subjectRef,
+      purpose: args.purpose,
+      version: args.version,
+    });
     const at = Date.now();
     await ctx.db.insert("consentEvents", {
       subjectRef: args.subjectRef,
@@ -67,6 +87,8 @@ export const record = mutation({
  * something never granted is a no-op error rather than a silent ledger entry, so
  * the audit trail stays meaningful.
  *
+ * @throws `ConvexError({ code: "INVALID_ARGUMENT" })` when `subjectRef` or `purpose`
+ *   is empty.
  * @throws `ConvexError({ code: "NO_CONSENT" })` when no consent was ever recorded
  *   for the pair.
  * @throws `ConvexError({ code: "NOT_GRANTED" })` when the current decision is not
@@ -80,6 +102,7 @@ export const withdraw = mutation({
   },
   returns: v.object({ at: v.number() }),
   handler: async (ctx, args) => {
+    assertNonEmpty({ subjectRef: args.subjectRef, purpose: args.purpose });
     const state = await ctx.db
       .query("consentState")
       .withIndex("by_subject_purpose", (q) =>

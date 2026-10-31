@@ -1,6 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
-import { consentDecision, jsonValue } from "./validators";
+import { consentDecision, jsonValue } from "./validators.js";
 
 /**
  * Two sandboxed tables — the consent ledger's own concern.
