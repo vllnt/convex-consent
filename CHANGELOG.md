@@ -20,7 +20,7 @@ All notable changes to this project are documented here. The format is based on
 - Adopt pnpm 10 with a release-age gate; releases are published only from CI with npm
   trusted publishing and provenance.
 
-## [0.1.0] - 2026-06-14
+## [0.1.0] - 2026-09-01
 
 ### Added
 
