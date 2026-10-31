@@ -17,6 +17,8 @@ All notable changes to this project are documented here. The format is based on
   dedicated codegen script.
 - Refresh all direct dependencies to their latest compatible releases for canary validation.
 - Require `convex@^1.45.0` and update `convex-test` to `^0.0.56`.
+- Upgrade dev tooling (vitest 5, vite 8.3, convex 1.48, convex-test 0.0.65, prettier 3.9.10) and
+  override the vulnerable transitive `handlebars` and `deepmerge-ts` releases.
 
 ## [0.1.0] - 2026-06-14
 
