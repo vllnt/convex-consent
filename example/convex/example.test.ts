@@ -180,6 +180,46 @@ describe("consent — version staleness", () => {
   });
 });
 
+describe("consent — empty identifiers are rejected", () => {
+  test.each(["subjectRef", "purpose", "version"] as const)(
+    "record rejects an empty %s and stores nothing",
+    async (field) => {
+      const t = setup();
+      const args = { subjectRef: "s_1", purpose: "analytics", version: "1" };
+      await expect(
+        t.mutation(api.example.record, {
+          ...args,
+          [field]: "",
+          decision: "granted",
+        }),
+      ).rejects.toThrow(/INVALID_ARGUMENT/);
+      expect(
+        await t.query(api.example.getStatesForSubject, { subjectRef: "" }),
+      ).toEqual([]);
+      expect(
+        await t.query(api.example.getState, {
+          subjectRef: "s_1",
+          purpose: "analytics",
+        }),
+      ).toBeNull();
+    },
+  );
+
+  test.each(["subjectRef", "purpose"] as const)(
+    "withdraw rejects an empty %s",
+    async (field) => {
+      const t = setup();
+      await expect(
+        t.mutation(api.example.withdraw, {
+          subjectRef: "s_1",
+          purpose: "analytics",
+          [field]: "",
+        }),
+      ).rejects.toThrow(/INVALID_ARGUMENT/);
+    },
+  );
+});
+
 describe("consent — withdraw (GDPR Art. 7(3))", () => {
   test("withdraw a granted consent → no longer granted, ledger records it", async () => {
     const t = setup();

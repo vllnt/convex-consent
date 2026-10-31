@@ -1,11 +1,11 @@
 import { v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
-import { query } from "./_generated/server";
+import { query } from "./_generated/server.js";
 import {
   consentCheckView,
   consentEventView,
   consentStateView,
-} from "./validators";
+} from "./validators.js";
 import type { Doc } from "./_generated/dataModel";
 
 /** Project a stored ledger row to its public event view (drops internal fields). */

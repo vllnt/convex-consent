@@ -152,6 +152,8 @@ Full reference: [docs/API.md](docs/API.md).
   cannot extend its retention. Export evidence before expiry if your policy
   requires longer storage; this package alone does not establish legal
   compliance.
+- `record` and `withdraw` throw `INVALID_ARGUMENT` for an empty `subjectRef`,
+  `purpose` or `version`.
 - `withdraw` throws `NO_CONSENT` for an unrecorded pair and `NOT_GRANTED` for a
   non-granted current decision; it is not an idempotent revoke.
 - Mount separately with `app.use(consent, { name: "marketingConsent" })` and
@@ -186,6 +188,22 @@ pnpm test:coverage  # enforced 100% on covered files
 
 Tests run against the real component runtime via `convex-test`
 (`@edge-runtime/vm`), not mocks.
+
+### Testing your app
+
+`@vllnt/convex-consent/test` exports `register(t, name = "consent")` to mount
+the component in a `convex-test` instance. It needs `convex-test` and `vitest`
+(with Vite's `import.meta.glob`) in the consuming app:
+
+```ts
+/// <reference types="vite/client" />
+import { convexTest } from "convex-test";
+import { register } from "@vllnt/convex-consent/test";
+import schema from "./schema";
+
+const t = convexTest(schema, import.meta.glob("./**/*.ts"));
+register(t);
+```
 
 ## Documentation
 

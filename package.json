@@ -1,10 +1,10 @@
 {
   "name": "@vllnt/convex-consent",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Append-only consent ledger (GDPR Art. 6/7) — record, withdraw, and gate consent per subject + purpose as a Convex component",
   "license": "MIT",
   "type": "module",
-  "packageManager": "pnpm@9.15.4",
+  "packageManager": "pnpm@10.34.8",
   "files": [
     "dist",
     "src"
@@ -45,9 +45,6 @@
     "test:coverage": "vitest run --coverage --coverage.reporter=text",
     "generate:llms": "node scripts/generate-llms.mjs",
     "preversion": "pnpm install --frozen-lockfile && pnpm build && pnpm test:coverage && pnpm typecheck && pnpm generate:llms",
-    "prepublishOnly": "npm whoami || npm login",
-    "alpha": "npm version prerelease --preid alpha && npm publish --tag alpha && git push --follow-tags",
-    "release": "npm version patch && npm publish && git push --follow-tags",
     "check:agents": "node -e \"const f=require('node:fs');if(!f.existsSync('AGENTS.md')||f.existsSync('CLAUDE.md')||f.existsSync('.claude'))process.exit(1)\"",
     "codegen": "pnpm convex codegen --component-dir ./src/component"
   },
@@ -99,6 +96,13 @@
     "privacy"
   ],
   "pnpm": {
+    "minimumReleaseAge": 10080,
+    "minimumReleaseAgeExclude": [
+      "@vllnt/*"
+    ],
+    "ignoredBuiltDependencies": [
+      "esbuild"
+    ],
     "overrides": {
       "handlebars@<4.7.10": "^4.7.10",
       "deepmerge-ts@<8.0.0": "^8.0.2"
