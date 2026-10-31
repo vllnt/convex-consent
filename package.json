@@ -1,6 +1,6 @@
 {
   "name": "@vllnt/convex-consent",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Append-only consent ledger (GDPR Art. 6/7) — record, withdraw, and gate consent per subject + purpose as a Convex component",
   "license": "MIT",
   "type": "module",

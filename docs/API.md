@@ -114,12 +114,13 @@ trail for an audit or a data subject request, excluding events already pruned.
 
 Coded `ConvexError`s thrown by the component (`error.data.code`):
 
-| Code             | Thrown by  | Meaning                                                                                     |
-| ---------------- | ---------- | ------------------------------------------------------------------------------------------- |
-| `INVALID_BATCH`  | `prune`    | Batch must be a finite integer from 1–500.                                                  |
-| `INVALID_BEFORE` | `prune`    | The cutoff must be finite.                                                                  |
-| `NO_CONSENT`     | `withdraw` | No consent was ever recorded for this `(subjectRef, purpose)`.                              |
-| `NOT_GRANTED`    | `withdraw` | The current decision is not `granted` (already `denied`/`withdrawn`) — nothing to withdraw. |
+| Code               | Thrown by            | Meaning                                                                                     |
+| ------------------ | -------------------- | ------------------------------------------------------------------------------------------- |
+| `INVALID_ARGUMENT` | `record`, `withdraw` | `subjectRef`, `purpose` or (for `record`) `version` is empty.                               |
+| `INVALID_BATCH`    | `prune`              | Batch must be a finite integer from 1–500.                                                  |
+| `INVALID_BEFORE`   | `prune`              | The cutoff must be finite.                                                                  |
+| `NO_CONSENT`       | `withdraw`           | No consent was ever recorded for this `(subjectRef, purpose)`.                              |
+| `NOT_GRANTED`      | `withdraw`           | The current decision is not `granted` (already `denied`/`withdrawn`) — nothing to withdraw. |
 
 ## Cron / Maintenance
 

@@ -4,21 +4,21 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.1] - Unreleased
 
 ### Fixed
 
-- Apply the documented 365-day default ledger retention and reject invalid prune batches to
-  prevent premature proof deletion and scheduler loops.
+- `record` rejects an empty `subjectRef`, `purpose` or `version`, and `withdraw` an empty
+  `subjectRef` or `purpose`, with `ConvexError({ code: "INVALID_ARGUMENT" })`.
+- `@vllnt/convex-consent/test` now type-checks under `moduleResolution: nodenext`
+  (explicit `.js` relative imports, Vite client types referenced).
 
 ### Changed
 
-- Treat Convex `_generated` output as CLI-owned, exclude it from formatting, and expose a
-  dedicated codegen script.
-- Refresh all direct dependencies to their latest compatible releases for canary validation.
-- Require `convex@^1.45.0` and update `convex-test` to `^0.0.56`.
 - Upgrade dev tooling (vitest 5, vite 8.3, convex 1.48, convex-test 0.0.65, prettier 3.9.10) and
   override the vulnerable transitive `handlebars` and `deepmerge-ts` releases.
+- Adopt pnpm 10 with a release-age gate; releases are published only from CI with npm
+  trusted publishing and provenance.
 
 ## [0.1.0] - 2026-06-14
 
@@ -51,3 +51,15 @@ All notable changes to this project are documented here. The format is based on
   retention 365 days.
 - Mount-safe: correct under multiple `app.use(component, { name })` mounts — each
   instance is sandboxed, the cron is registered per instance.
+
+### Fixed
+
+- Apply the documented 365-day default ledger retention and reject invalid prune batches to
+  prevent premature proof deletion and scheduler loops.
+
+### Changed
+
+- Treat Convex `_generated` output as CLI-owned, exclude it from formatting, and expose a
+  dedicated codegen script.
+- Refresh all direct dependencies to their latest compatible releases.
+- Require `convex@^1.45.0` and update `convex-test` to `^0.0.56`.
