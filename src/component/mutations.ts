@@ -13,6 +13,11 @@ function assertNonEmpty(fields: Record<string, string>): void {
         message: `${name} must be non-empty`,
       });
     }
+  }
+}
+
+function assertMaxLength(fields: Record<string, string>): void {
+  for (const [name, value] of Object.entries(fields)) {
     if (value.length > MAX_REF_LENGTH) {
       throw new ConvexError({
         code: "INVALID_ARGUMENT",
@@ -54,6 +59,18 @@ export const record = mutation({
       purpose: args.purpose,
       version: args.version,
     });
+    const existing = await ctx.db
+      .query("consentState")
+      .withIndex("by_subject_purpose", (q) =>
+        q.eq("subjectRef", args.subjectRef).eq("purpose", args.purpose),
+      )
+      .unique();
+    if (existing === null) {
+      assertMaxLength({ subjectRef: args.subjectRef, purpose: args.purpose });
+    }
+    if (existing?.version !== args.version) {
+      assertMaxLength({ version: args.version });
+    }
     const at = Date.now();
     await ctx.db.insert("consentEvents", {
       subjectRef: args.subjectRef,
@@ -64,12 +81,6 @@ export const record = mutation({
       at,
     });
 
-    const existing = await ctx.db
-      .query("consentState")
-      .withIndex("by_subject_purpose", (q) =>
-        q.eq("subjectRef", args.subjectRef).eq("purpose", args.purpose),
-      )
-      .unique();
     const projection = {
       subjectRef: args.subjectRef,
       purpose: args.purpose,

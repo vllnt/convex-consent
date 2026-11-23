@@ -45,11 +45,29 @@ describe("consent component — ref length limits", () => {
     ).rejects.toThrow(/INVALID_ARGUMENT|at most/);
   });
 
-  test("withdraw rejects an over-long purpose", async () => {
+  test("an existing over-long pair can still be re-recorded and withdrawn", async () => {
     const t = setup();
-    await expect(t.mutation(api.mutations.withdraw, { subjectRef: "u", purpose: long })).rejects.toThrow(
-      /INVALID_ARGUMENT|at most/,
-    );
+    await t.run(async (ctx) => {
+      await ctx.db.insert("consentState", {
+        subjectRef: long,
+        purpose: long,
+        decision: "granted",
+        version: long,
+        at: 0,
+      });
+    });
+    await expect(
+      t.mutation(api.mutations.record, { subjectRef: long, purpose: long, decision: "granted", version: long }),
+    ).resolves.toMatchObject({ at: expect.any(Number) });
+    await expect(t.mutation(api.mutations.withdraw, { subjectRef: long, purpose: long })).resolves.toMatchObject({
+      at: expect.any(Number),
+    });
+    expect(await t.query(api.queries.check, { subjectRef: long, purpose: long })).toMatchObject({
+      decision: "withdrawn",
+    });
+    await expect(
+      t.mutation(api.mutations.record, { subjectRef: long, purpose: long, decision: "granted", version: `${long}z` }),
+    ).rejects.toThrow(/at most/);
   });
 
   test("record accepts refs at the limit", async () => {
