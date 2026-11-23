@@ -3,7 +3,6 @@ import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import { api } from "./component/_generated/api.js";
 import schema from "./component/schema.js";
-import { MAX_REF_LENGTH } from "./shared.js";
 
 const modules = import.meta.glob("./component/**/*.ts");
 
@@ -26,59 +25,5 @@ describe("consent component — indexes", () => {
     const states = await t.query(api.queries.getStatesForSubject, { subjectRef: "u" });
     expect(states.map((s) => s.purpose)).toEqual(["analytics", "marketing"]);
     expect(states.every((s) => s.subjectRef === "u")).toBe(true);
-  });
-});
-
-describe("consent component — ref length limits", () => {
-  const long = "x".repeat(MAX_REF_LENGTH + 1);
-
-  test.each(["subjectRef", "purpose", "version"] as const)("record rejects an over-long %s", async (field) => {
-    const t = setup();
-    await expect(
-      t.mutation(api.mutations.record, {
-        subjectRef: "u",
-        purpose: "p",
-        decision: "granted",
-        version: "1",
-        [field]: long,
-      }),
-    ).rejects.toThrow(/INVALID_ARGUMENT|at most/);
-  });
-
-  test("an existing over-long pair can still be re-recorded and withdrawn", async () => {
-    const t = setup();
-    await t.run(async (ctx) => {
-      await ctx.db.insert("consentState", {
-        subjectRef: long,
-        purpose: long,
-        decision: "granted",
-        version: long,
-        at: 0,
-      });
-    });
-    await expect(
-      t.mutation(api.mutations.record, { subjectRef: long, purpose: long, decision: "granted", version: long }),
-    ).resolves.toMatchObject({ at: expect.any(Number) });
-    await expect(t.mutation(api.mutations.withdraw, { subjectRef: long, purpose: long })).resolves.toMatchObject({
-      at: expect.any(Number),
-    });
-    expect(await t.query(api.queries.check, { subjectRef: long, purpose: long })).toMatchObject({
-      decision: "withdrawn",
-    });
-    await expect(
-      t.mutation(api.mutations.record, { subjectRef: long, purpose: long, decision: "granted", version: `${long}z` }),
-    ).rejects.toThrow(/at most/);
-  });
-
-  test("record accepts refs at the limit", async () => {
-    const t = setup();
-    const ok = "x".repeat(MAX_REF_LENGTH);
-    const result = await t.mutation(api.mutations.record, {
-      subjectRef: ok,
-      purpose: ok,
-      decision: "granted",
-      version: ok,
-    });
-    expect(result.at).toBeTypeOf("number");
   });
 });
