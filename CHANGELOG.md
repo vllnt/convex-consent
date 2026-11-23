@@ -10,6 +10,8 @@ All notable changes to this project are documented here. The format is based on
 
 - Drop the `consentState.by_subject` index: it was a prefix of `by_subject_purpose`, which now serves
   `getStatesForSubject` (results ordered by `purpose`). Saves one index entry per state row.
+- `record` rejects a new `(subjectRef, purpose)` pair or a new `version` longer than 512 characters
+  with `INVALID_ARGUMENT`; existing longer values can still be re-recorded and withdrawn.
 
 ### Fixed
 

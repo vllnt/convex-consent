@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { api } from "./_generated/api.js";
 import { mutation } from "./_generated/server.js";
-import { DEFAULT_RETENTION_MS, MAX_PRUNE_BATCH } from "../shared.js";
+import { DEFAULT_RETENTION_MS, MAX_PRUNE_BATCH, MAX_REF_LENGTH } from "../shared.js";
 import { consentDecision, jsonValue } from "./validators.js";
 
 /** Reject empty identifiers: an empty ref/purpose/version would store a meaningless ledger row. */
@@ -11,6 +11,17 @@ function assertNonEmpty(fields: Record<string, string>): void {
       throw new ConvexError({
         code: "INVALID_ARGUMENT",
         message: `${name} must be non-empty`,
+      });
+    }
+  }
+}
+
+function assertMaxLength(fields: Record<string, string>): void {
+  for (const [name, value] of Object.entries(fields)) {
+    if (value.length > MAX_REF_LENGTH) {
+      throw new ConvexError({
+        code: "INVALID_ARGUMENT",
+        message: `${name} must be at most ${MAX_REF_LENGTH} characters`,
       });
     }
   }
@@ -48,6 +59,18 @@ export const record = mutation({
       purpose: args.purpose,
       version: args.version,
     });
+    const existing = await ctx.db
+      .query("consentState")
+      .withIndex("by_subject_purpose", (q) =>
+        q.eq("subjectRef", args.subjectRef).eq("purpose", args.purpose),
+      )
+      .unique();
+    if (existing === null) {
+      assertMaxLength({ subjectRef: args.subjectRef, purpose: args.purpose });
+    }
+    if (existing?.version !== args.version) {
+      assertMaxLength({ version: args.version });
+    }
     const at = Date.now();
     await ctx.db.insert("consentEvents", {
       subjectRef: args.subjectRef,
@@ -58,12 +81,6 @@ export const record = mutation({
       at,
     });
 
-    const existing = await ctx.db
-      .query("consentState")
-      .withIndex("by_subject_purpose", (q) =>
-        q.eq("subjectRef", args.subjectRef).eq("purpose", args.purpose),
-      )
-      .unique();
     const projection = {
       subjectRef: args.subjectRef,
       purpose: args.purpose,

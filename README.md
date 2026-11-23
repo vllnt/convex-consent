@@ -153,7 +153,8 @@ Full reference: [docs/API.md](docs/API.md).
   requires longer storage; this package alone does not establish legal
   compliance.
 - `record` and `withdraw` throw `INVALID_ARGUMENT` for an empty `subjectRef`,
-  `purpose` or `version`.
+  `purpose` or `version`; `record` also rejects a new pair or version over 512
+  characters.
 - `withdraw` throws `NO_CONSENT` for an unrecorded pair and `NOT_GRANTED` for a
   non-granted current decision; it is not an idempotent revoke.
 - Mount separately with `app.use(consent, { name: "marketingConsent" })` and

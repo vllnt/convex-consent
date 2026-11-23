@@ -116,7 +116,7 @@ Coded `ConvexError`s thrown by the component (`error.data.code`):
 
 | Code               | Thrown by            | Meaning                                                                                     |
 | ------------------ | -------------------- | ------------------------------------------------------------------------------------------- |
-| `INVALID_ARGUMENT` | `record`, `withdraw` | `subjectRef`, `purpose` or (for `record`) `version` is empty.                               |
+| `INVALID_ARGUMENT` | `record`, `withdraw` | `subjectRef`, `purpose` or (for `record`) `version` is empty, or `record` creates a pair or version over 512 characters. |
 | `INVALID_BATCH`    | `prune`              | Batch must be a finite integer from 1–500.                                                  |
 | `INVALID_BEFORE`   | `prune`              | The cutoff must be finite.                                                                  |
 | `NO_CONSENT`       | `withdraw`           | No consent was ever recorded for this `(subjectRef, purpose)`.                              |
