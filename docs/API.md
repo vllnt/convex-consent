@@ -98,8 +98,8 @@ The raw current decision for one pair, or `null` if none was ever recorded.
 
 ### `getStatesForSubject(ctx, subjectRef) → ConsentState[]`
 
-Every current decision held by one subject, across all purposes (via the
-`by_subject` index).
+Every current decision held by one subject, across all purposes, ordered by
+`purpose` (a `subjectRef` prefix range of the `by_subject_purpose` index).
 
 ### `history(ctx, subjectRef, purpose, paginationOpts) → PaginationResult<ConsentEvent>`
 
@@ -116,7 +116,7 @@ Coded `ConvexError`s thrown by the component (`error.data.code`):
 
 | Code               | Thrown by            | Meaning                                                                                     |
 | ------------------ | -------------------- | ------------------------------------------------------------------------------------------- |
-| `INVALID_ARGUMENT` | `record`, `withdraw` | `subjectRef`, `purpose` or (for `record`) `version` is empty.                               |
+| `INVALID_ARGUMENT` | `record`, `withdraw` | `subjectRef`, `purpose` or (for `record`) `version` is empty or over 512 characters.        |
 | `INVALID_BATCH`    | `prune`              | Batch must be a finite integer from 1–500.                                                  |
 | `INVALID_BEFORE`   | `prune`              | The cutoff must be finite.                                                                  |
 | `NO_CONSENT`       | `withdraw`           | No consent was ever recorded for this `(subjectRef, purpose)`.                              |

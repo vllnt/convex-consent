@@ -15,7 +15,7 @@ import { consentDecision, jsonValue } from "./validators.js";
  * `consentState` is the derived **current-decision projection** — exactly one
  * row per `(subjectRef, purpose)`, overwritten on each new event. It is the O(1)
  * runtime gate the host queries before processing; `by_subject_purpose` resolves
- * a single pair, `by_subject` lists every purpose for one subject.
+ * a single pair and, by its `subjectRef` prefix, every purpose for one subject.
  */
 export default defineSchema({
   consentEvents: defineTable({
@@ -36,6 +36,5 @@ export default defineSchema({
     version: v.string(),
     at: v.number(),
   })
-    .index("by_subject_purpose", ["subjectRef", "purpose"])
-    .index("by_subject", ["subjectRef"]),
+    .index("by_subject_purpose", ["subjectRef", "purpose"]),
 });

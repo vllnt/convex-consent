@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format is based on
 
 ## [0.1.1] - Unreleased
 
+### Changed
+
+- Drop the `consentState.by_subject` index: it was a prefix of `by_subject_purpose`, which now serves
+  `getStatesForSubject` (results ordered by `purpose`). Saves one index entry per state row.
+- `record` and `withdraw` reject a `subjectRef`, `purpose` or `version` longer than 512 characters with
+  `INVALID_ARGUMENT`.
+
 ### Fixed
 
 - `record` rejects an empty `subjectRef`, `purpose` or `version`, and `withdraw` an empty

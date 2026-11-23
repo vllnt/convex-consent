@@ -98,7 +98,7 @@ export const getStatesForSubject = query({
   handler: async (ctx, args) => {
     const states = await ctx.db
       .query("consentState")
-      .withIndex("by_subject", (q) => q.eq("subjectRef", args.subjectRef))
+      .withIndex("by_subject_purpose", (q) => q.eq("subjectRef", args.subjectRef))
       .collect();
     return states.map(stateView);
   },

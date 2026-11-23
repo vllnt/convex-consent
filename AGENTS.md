@@ -41,7 +41,7 @@ src/
 
 Sandboxed tables: `consentEvents` — the append-only ledger, indexed `by_subject_purpose_at` (history)
 and `by_at` (retention sweep); `consentState` — the current projection (one row per pair), indexed
-`by_subject_purpose` (the O(1) gate) and `by_subject` (all purposes for a subject). No host tables are
+`by_subject_purpose` (the O(1) gate, and by its `subjectRef` prefix all purposes for a subject). No host tables are
 touched. The stored `proof` is opaque to the component; the host narrows it via `proofValidator` at the
 client boundary.
 

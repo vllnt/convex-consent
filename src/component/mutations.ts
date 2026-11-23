@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { api } from "./_generated/api.js";
 import { mutation } from "./_generated/server.js";
-import { DEFAULT_RETENTION_MS, MAX_PRUNE_BATCH } from "../shared.js";
+import { DEFAULT_RETENTION_MS, MAX_PRUNE_BATCH, MAX_REF_LENGTH } from "../shared.js";
 import { consentDecision, jsonValue } from "./validators.js";
 
 /** Reject empty identifiers: an empty ref/purpose/version would store a meaningless ledger row. */
@@ -11,6 +11,12 @@ function assertNonEmpty(fields: Record<string, string>): void {
       throw new ConvexError({
         code: "INVALID_ARGUMENT",
         message: `${name} must be non-empty`,
+      });
+    }
+    if (value.length > MAX_REF_LENGTH) {
+      throw new ConvexError({
+        code: "INVALID_ARGUMENT",
+        message: `${name} must be at most ${MAX_REF_LENGTH} characters`,
       });
     }
   }
