@@ -98,8 +98,8 @@ The raw current decision for one pair, or `null` if none was ever recorded.
 
 ### `getStatesForSubject(ctx, subjectRef) → ConsentState[]`
 
-Every current decision held by one subject, across all purposes (via the
-`by_subject` index).
+Every current decision held by one subject, across all purposes, ordered by
+`purpose` (a `subjectRef` prefix range of the `by_subject_purpose` index).
 
 ### `history(ctx, subjectRef, purpose, paginationOpts) → PaginationResult<ConsentEvent>`
 
