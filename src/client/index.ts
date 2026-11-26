@@ -120,7 +120,17 @@ interface RunMutationCtx {
  * ```ts
  * const consent = new Consent(components.consent, {
  *   defaultVersion: "2024-policy",
- *   proofValidator: v.object({ policyHash: v.string() }).parse,
+ *   proofValidator: (value) => {
+ *     if (
+ *       typeof value !== "object" ||
+ *       value === null ||
+ *       !("policyHash" in value) ||
+ *       typeof value.policyHash !== "string"
+ *     ) {
+ *       throw new Error("Expected a policyHash string");
+ *     }
+ *     return { policyHash: value.policyHash };
+ *   },
  * });
  * await consent.record(ctx, "user_42", "analytics", "granted", {
  *   proof: { policyHash },
@@ -270,11 +280,13 @@ export class Consent<TProof = unknown> {
   }
 
   /**
-   * Delete superseded ledger events whose `at < before` in bounded batches,
-   * oldest first. `before` defaults to the server clock; `batch` caps each pass
-   * and the sweep self-reschedules until the tail is clean. The current-state
-   * projection is never pruned. Returns the count removed in the first pass. The
-   * built-in daily cron drives this automatically.
+   * Delete ledger events whose `at < before` in bounded batches, oldest first.
+   * `before` defaults to the server clock minus the 365-day retention window;
+   * `batch` (integer 1–500, default 200) caps each pass and the sweep
+   * self-reschedules until the tail is clean. Events are not checked for being
+   * superseded, so the proof for a pair's current decision can be deleted too.
+   * The current-state projection is never pruned. Returns the count removed in
+   * the first pass. The built-in daily cron drives this automatically.
    */
   prune(
     ctx: RunMutationCtx,

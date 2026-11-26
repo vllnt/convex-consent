@@ -6,10 +6,26 @@ All notable changes to this project are documented here. The format is based on
 
 ## [0.1.1] - Unreleased
 
+### Added
+
+- Ship `docs/API.md`, `CHANGELOG.md` and `llms.txt` in the npm tarball, so coding agents read
+  docs that match the installed version from `node_modules/@vllnt/convex-consent/`. `llms.txt`
+  links shipped files by relative path and gains a "For coding agents" note and an ecosystem
+  link; the README gains the same note and a "Related packages" section.
+- `docs/API.md` documents the package entry points (`./test`, `./convex.config`,
+  `./_generated/component`) and the client options.
+- `pnpm test:package`, which `pnpm build` now runs (so CI and the publish workflow run it), fails
+  when a required file is missing from the tarball, when a contributor or internal file is packed,
+  or when an `llms.txt` link does not resolve inside the tarball.
+
 ### Changed
 
 - Drop the `consentState.by_subject` index: it was a prefix of `by_subject_purpose`, which now serves
   `getStatesForSubject` (results ordered by `purpose`). Saves one index entry per state row.
+- `homepage` points at the package page on oss.vllnt.com.
+- Canary publishes on every push to `main` that touches the package or its shipped docs; the
+  repository-variable gate is removed. It publishes under the `canary` dist-tag only and never moves
+  `latest`.
 
 ### Fixed
 
@@ -17,6 +33,10 @@ All notable changes to this project are documented here. The format is based on
   `subjectRef` or `purpose`, with `ConvexError({ code: "INVALID_ARGUMENT" })`.
 - `@vllnt/convex-consent/test` now type-checks under `moduleResolution: nodenext`
   (explicit `.js` relative imports, Vite client types referenced).
+- Documentation drift: the shipped `prune` comments now say events are not checked for being
+  superseded and that `before` defaults to now minus 365 days; the `proofValidator` comments no
+  longer claim `convex/values` validators have a `.parse`; `docs/API.md` states which `ctx` each
+  method needs.
 
 ### Changed
 

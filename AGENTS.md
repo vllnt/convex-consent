@@ -54,7 +54,7 @@ client boundary.
 - The append-only invariant: a ledger row is never mutated; withdrawal is a new event, not an edit
 - The current-state projection logic (latest event wins, overwritten per `(subjectRef, purpose)`)
 - The version-staleness comparison surfaced by `check`
-- The daily prune cron and `prune` mutation (superseded ledger events past retention only — never the projection)
+- The daily prune cron and `prune` mutation (ledger events past retention, never the projection)
 
 **Host owns:**
 
@@ -99,11 +99,12 @@ consent).
   and read — no unchecked cast. `subjectRef`/`purpose` are opaque host strings the component never
   inspects.
 
-- **Prune is ledger-only + bounded + self-rescheduling:** `prune` removes up to `batch` superseded ledger
-  events (default 200) past their `at` cutoff per pass and self-reschedules via `ctx.scheduler` when a
-  full batch was removed. The `consentState` projection — the live gate — is NEVER pruned, so the current
-  decision survives even after old proof ages out. Idempotent; the built-in daily cron drives it. Default
-  retention 365 days (proof must survive an audit window).
+- **Prune is ledger-only + bounded + self-rescheduling:** `prune` removes up to `batch` ledger events
+  (default 200) past their `at` cutoff per pass (superseded or not, so a pair's latest proof can go too)
+  and self-reschedules via `ctx.scheduler` when a full batch was removed. The `consentState` projection
+  — the live gate — is NEVER pruned, so the current decision survives even after old proof ages out.
+  Idempotent; the built-in daily cron drives it. Default retention 365 days (proof must survive an audit
+  window).
 
 - **Backend-only (no `./react` entry):** consent state is read through an ordinary reactive `useQuery`
   over the host's own re-exported `check`/`getState` refs — a dedicated hook would wrap the host's `api`
@@ -129,6 +130,7 @@ consent).
 | Error codes | `docs/API.md` → `## Error codes` table |
 | `peerDependencies.convex` version | `llms.txt` context line (`convex@^X.Y.Z`), `docs/API.md` Compatibility line, README Installation peer note |
 | Decisions / version-staleness / append-only semantics | `docs/API.md` mutation+query sections, Key design decisions above |
+| Shipped docs set (`package.json` `files`: `docs/API.md`, `CHANGELOG.md`, `llms.txt`) | The `required` list in `scripts/test-package.mjs` (run by `pnpm build`, and so by CI), the `paths` filter in `publish.yml` |
 | Any change | `pnpm generate:llms` to validate the `llms.txt` index (no bundle is generated) |
 
 Grep old values before committing (e.g. after a `peerDependencies.convex` bump, `git grep "1.41.0"` → only the new range survives).

@@ -9,8 +9,9 @@ export type ConsentDecision = "granted" | "denied" | "withdrawn";
 /**
  * Validates and narrows an opaque stored value to a host type `T` at the client
  * boundary. Receives the raw value the component returned (`unknown`) and MUST
- * return a typed `T` or throw. A `convex/values` validator's `.parse` (or a Zod
- * `.parse`) fits directly; omit it to keep the value unvalidated.
+ * return a typed `T` or throw. A hand-written parser or a Zod `.parse` fits;
+ * `convex/values` validators have no `.parse`. Omit it to keep the value
+ * unvalidated.
  *
  * @typeParam T - The host's stored type (the consent `proof`).
  */

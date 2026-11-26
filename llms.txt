@@ -3,25 +3,32 @@
 > Append-only consent ledger (GDPR Art. 6/7) — record, withdraw, and gate consent per subject + purpose as a Convex component
 
 `@vllnt/convex-consent` is a publishable Convex component. It targets `convex@^1.45.0`.
-It stores two sandboxed tables. `consentEvents` is the append-only legal ledger (one immutable row per grant/deny/withdraw, never mutated — the GDPR proof — holding an opaque host `subjectRef`, a `purpose` key, a `decision` of `granted`/`denied`/`withdrawn`, the policy `version`, opaque host `proof`, and a server `at` timestamp). `consentState` is the derived current-decision projection — exactly one row per `(subjectRef, purpose)` — the O(1) runtime gate. A host mutation calls `record(subjectRef, purpose, decision, { version?, proof? })` (appends an event + updates the projection) or `withdraw(subjectRef, purpose, proof?)` (GDPR Art. 7(3) — appends a `withdrawn` event, but only when a grant is currently held, else throws `NO_CONSENT`/`NOT_GRANTED`). Before processing personal data the host calls `check(subjectRef, purpose, requiredVersion?)` — the gate — which returns `granted`/`stale` so a grant with an unequal policy `version` re-prompts; `getState`, `getStatesForSubject`, and paginated `history` read the record. Time is read from the server clock inside every handler — no caller-supplied clock. A bounded, self-rescheduling `prune` (and a built-in daily cron) sweeps all ledger events past the default 365-day retention window, including the current decision's evidence; the current-state projection is never pruned. The host owns the subject, the purpose meaning, auth, and the `proof` type (the client is generic over it, with an optional `proofValidator` parser narrowing the opaque stored value at the boundary — never a `v.any()` dump); the component owns only the consent record. Mount-safe: it runs correctly under multiple named `app.use` mounts.
+It stores two sandboxed tables. `consentEvents` is the append-only legal ledger (one immutable row per grant/deny/withdraw, never mutated — the GDPR proof — holding an opaque host `subjectRef`, a `purpose` key, a `decision` of `granted`/`denied`/`withdrawn`, the policy `version`, opaque host `proof`, and a server `at` timestamp). `consentState` is the derived current-decision projection — exactly one row per `(subjectRef, purpose)` — the O(1) runtime gate. A host mutation calls `record(ctx, subjectRef, purpose, decision, { version?, proof? })` (appends an event + updates the projection) or `withdraw(ctx, subjectRef, purpose, proof?)` (GDPR Art. 7(3) — appends a `withdrawn` event, but only when a grant is currently held, else throws `NO_CONSENT`/`NOT_GRANTED`). Before processing personal data the host calls `check(ctx, subjectRef, purpose, requiredVersion?)` — the gate — which returns `granted`/`stale` so a grant with an unequal policy `version` re-prompts; `getState`, `getStatesForSubject`, and paginated `history` read the record. Time is read from the server clock inside every handler — no caller-supplied clock. A bounded, self-rescheduling `prune` (and a built-in daily cron) sweeps all ledger events past the default 365-day retention window, including the current decision's evidence; the current-state projection is never pruned. The host owns the subject, the purpose meaning, auth, and the `proof` type (the client is generic over it, with an optional `proofValidator` parser narrowing the opaque stored value at the boundary — never a `v.any()` dump); the component owns only the consent record. Mount-safe: it runs correctly under multiple named `app.use` mounts.
 
-Documentation follows main/canary, not necessarily npm latest. Prune batch is 1–500 (default 200); invalid batch/cutoff throws INVALID_BATCH/INVALID_BEFORE. Custom sweeps cannot extend the built-in cron's retention. Host parsers are `(unknown) => T`, not `v.*.parse`. Legal compliance and evidence export remain host responsibilities.
+Prune batch is 1–500 (default 200); invalid batch/cutoff throws INVALID_BATCH/INVALID_BEFORE. Custom sweeps cannot extend the built-in cron's retention. Host parsers are `(unknown) => T`, not `v.*.parse`. Legal compliance and evidence export remain host responsibilities.
+
+## For coding agents
+
+The docs are bundled in this package at `node_modules/@vllnt/convex-consent/docs/` and match the installed version. Read them, and the TypeScript source in `node_modules/@vllnt/convex-consent/src/`, before writing code that uses the package.
 
 ## Docs
 
-- [README](README.md): Project overview, installation, usage examples, architecture
-- [API Reference](docs/API.md): Public class methods, return shapes, error codes, cron
-- [Changelog](CHANGELOG.md): Version history and release notes
-- [Contributing](CONTRIBUTING.md): Development setup, validation commands, release workflow
+- [README](./README.md): Project overview, installation, usage examples, architecture
+- [API Reference](./docs/API.md): Entry points, public class methods, return shapes, error codes, cron
+- [Changelog](./CHANGELOG.md): Version history and release notes
+- [License](./LICENSE): MIT license
 
-## Examples
+## Ecosystem
 
-- [Example component wrapper](example/convex/example.ts): Host-app wrapper functions
-- [Example tests](example/convex/example.test.ts): End-to-end usage coverage with `convex-test`
+- [vllnt oss](https://oss.vllnt.com/llms.txt): Index of the vllnt open-source packages
 
 ## Optional
 
-- [AGENTS](AGENTS.md): Canonical agent instructions for this repository
-- [Security Policy](SECURITY.md): Vulnerability reporting policy
-- [Code of Conduct](CODE_OF_CONDUCT.md): Community participation guidelines
-- [License](LICENSE): MIT license
+These live on GitHub, are not bundled in the package, and track `main` rather than the installed version.
+
+- [Example component wrapper](https://github.com/vllnt/convex-consent/blob/main/example/convex/example.ts): Host-app wrapper functions
+- [Example tests](https://github.com/vllnt/convex-consent/blob/main/example/convex/example.test.ts): End-to-end usage coverage with `convex-test`
+- [Contributing](https://github.com/vllnt/convex-consent/blob/main/CONTRIBUTING.md): Development setup, validation commands, release workflow
+- [AGENTS](https://github.com/vllnt/convex-consent/blob/main/AGENTS.md): Agent instructions for working on this repository, not for using the package
+- [Security Policy](https://github.com/vllnt/convex-consent/blob/main/SECURITY.md): Vulnerability reporting policy
+- [Code of Conduct](https://github.com/vllnt/convex-consent/blob/main/CODE_OF_CONDUCT.md): Community participation guidelines

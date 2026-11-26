@@ -24,8 +24,13 @@ const consent = new Consent<{ policyHash: string }>(components.consent, {
 ```
 
 `Consent<TProof = unknown>` is generic over the host's opaque consent `proof`
-type. All methods take the host `ctx` (a query or mutation context) as the first
-argument.
+type. Options: `defaultVersion?: string` (default `"1"`) and
+`proofValidator?: (value: unknown) => TProof`.
+
+All methods take the host `ctx` as the first argument. `record`, `withdraw` and
+`prune` call `ctx.runMutation` (a mutation or action context); `check`,
+`getState`, `getStatesForSubject` and `history` call `ctx.runQuery` (a query,
+mutation or action context).
 
 **Time is server-sourced.** Every handler stamps the event `at` from
 `Date.now()` itself; no method accepts a caller-supplied clock.
@@ -34,6 +39,17 @@ argument.
 over the value written by `record` / `withdraw` (before storage) and over the
 value returned by `history` (on read). It must return the typed value or throw.
 Omit it to leave the opaque proof unvalidated.
+
+## Entry points
+
+| Import                                       | Provides                                                                                                                                                              |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@vllnt/convex-consent`                      | The `Consent` class and the types `ConsentComponent`, `ConsentCheck`, `ConsentDecision`, `ConsentEvent`, `ConsentOptions`, `ConsentState`, `Parser`, `RecordOptions`. |
+| `@vllnt/convex-consent/convex.config`        | The component definition for `app.use(...)`.                                                                                                                          |
+| `@vllnt/convex-consent/test`                 | `register(t, name = "consent")` mounts the component into a `convex-test` instance. Needs `convex-test` and Vite's `import.meta.glob` in the consuming app.           |
+| `@vllnt/convex-consent/_generated/component` | The `ComponentApi` type only.                                                                                                                                         |
+
+There is no `./react` entry; the package is backend-only.
 
 ## Mutations
 

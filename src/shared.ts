@@ -25,9 +25,11 @@ export const DEFAULT_VERSION = "1";
  * Default retention (ms) for ledger events before the prune cron sweeps them:
  * 365 days. Consent proof must survive long enough to answer an audit or a data
  * subject request, so the default window is deliberately long. The current-state
- * projection is NEVER pruned — only superseded historical ledger events past the
- * cutoff are removed. A host with a stricter or looser legal window drives
- * `prune` from its own scheduler with an explicit `before` cutoff.
+ * projection is NEVER pruned — only ledger events past the cutoff are removed,
+ * including the proof for a pair's current decision. A host with a stricter
+ * window can drive `prune` from its own scheduler with an explicit `before`
+ * cutoff; a longer cutoff cannot extend retention because the built-in cron
+ * still sweeps at 365 days.
  */
 export const DEFAULT_RETENTION_MS = 31_536_000_000;
 
