@@ -43,6 +43,9 @@ All notable changes to this project are documented here. The format is based on
 
 - Upgrade dev tooling (vitest 5, vite 8.3, convex 1.48, convex-test 0.0.65, prettier 3.9.10) and
   override the vulnerable transitive `handlebars` and `deepmerge-ts` releases.
+- Upgrade dev dependencies: convex 1.51, convex-test 0.0.73, vitest and `@vitest/coverage-v8`
+  5.1.1, `@vllnt/typescript` 3 (with `exactOptionalPropertyTypes` kept off). The built `dist` and
+  the `convex@^1.45.0` peer range are unchanged.
 - Adopt pnpm 10 with a release-age gate; releases are published only from CI with npm
   trusted publishing and provenance.
 
