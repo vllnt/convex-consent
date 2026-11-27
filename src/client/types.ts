@@ -51,7 +51,7 @@ export interface ConsentState {
 export interface ConsentCheck {
   /** The gate: `true` only when the latest decision is `granted` and the version matches any requirement. */
   granted: boolean;
-  /** `true` when a `granted` decision is for an older version than the one now required — re-prompt. */
+  /** `true` when a `granted` decision has a `version` different from `requiredVersion` (string inequality, not version ordering) — re-prompt. */
   stale: boolean;
   /** The current decision, or `null` if none was ever recorded. */
   decision: ConsentDecision | null;

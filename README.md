@@ -158,8 +158,8 @@ Full reference: [docs/API.md](docs/API.md).
   cannot extend its retention. Export evidence before expiry if your policy
   requires longer storage; this package alone does not establish legal
   compliance.
-- `record` and `withdraw` throw `INVALID_ARGUMENT` for an empty `subjectRef`,
-  `purpose` or `version`.
+- `record` throws `INVALID_ARGUMENT` for an empty `subjectRef`, `purpose` or
+  `version`; `withdraw` for an empty `subjectRef` or `purpose`.
 - `withdraw` throws `NO_CONSENT` for an unrecorded pair and `NOT_GRANTED` for a
   non-granted current decision; it is not an idempotent revoke.
 - Mount separately with `app.use(consent, { name: "marketingConsent" })` and
@@ -217,7 +217,7 @@ register(t);
 heading and local links without generating a source bundle.
 
 [API reference](docs/API.md) · [LLM index](llms.txt) ·
-[Security policy](SECURITY.md)
+[Security policy](https://github.com/vllnt/convex-consent/blob/main/SECURITY.md)
 
 ## Related packages
 
@@ -236,7 +236,8 @@ heading and local links without generating a source bundle.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+See
+[CONTRIBUTING.md](https://github.com/vllnt/convex-consent/blob/main/CONTRIBUTING.md).
 
 ## Author
 

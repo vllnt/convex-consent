@@ -4,9 +4,10 @@ import process from "node:process";
 
 /**
  * Packs the package in dry-run mode and checks what would ship: every required
- * file is present, no contributor or internal file is packed, and every
- * `llms.txt` link to a shipped file is relative and resolves inside the tarball.
- * Run after `pnpm build` so `dist` exists.
+ * file is present, no Markdown outside the shipped docs set is packed (so no
+ * contributor or internal doc), and every `llms.txt` link to a shipped file is
+ * relative and resolves inside the tarball. Run after `pnpm build` so `dist`
+ * exists. Test, spec and `.env` files are denied by `check-package-contents.sh`.
  */
 
 const required = [
@@ -22,13 +23,7 @@ const required = [
   "src/test.ts",
 ];
 
-const shippedMarkdown = new Set(["README.md", "CHANGELOG.md", "docs/API.md"]);
-
-const forbidden = [
-  [/(^|\/)\.env(\.|$)/, "environment file"],
-  [/\.(test|spec)\.[cm]?[jt]sx?$/, "test or spec file"],
-  [/(^|\/)__tests__\//, "test directory"],
-];
+const shippedMarkdown = new Set(required.filter((path) => path.endsWith(".md")));
 
 const githubMain =
   /^https:\/\/github\.com\/vllnt\/convex-consent\/(?:blob|raw|tree)\/main\/(.+)$/;
@@ -62,9 +57,6 @@ for (const path of required) {
 for (const path of packed) {
   if (/\.mdx?$/.test(path) && !shippedMarkdown.has(path)) {
     failures.push(`markdown outside the shipped docs set: ${path}`);
-  }
-  for (const [pattern, label] of forbidden) {
-    if (pattern.test(path)) failures.push(`${label} in tarball: ${path}`);
   }
 }
 

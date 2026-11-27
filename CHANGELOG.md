@@ -15,8 +15,9 @@ All notable changes to this project are documented here. The format is based on
 - `docs/API.md` documents the package entry points (`./test`, `./convex.config`,
   `./_generated/component`) and the client options.
 - `pnpm test:package`, which `pnpm build` now runs (so CI and the publish workflow run it), fails
-  when a required file is missing from the tarball, when a contributor or internal file is packed,
-  or when an `llms.txt` link does not resolve inside the tarball.
+  when a required file is missing from the tarball, when Markdown outside the shipped docs set (such
+  as a contributor or internal doc) is packed, or when an `llms.txt` link does not resolve inside the
+  tarball.
 
 ### Changed
 

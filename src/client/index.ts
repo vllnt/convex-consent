@@ -221,8 +221,9 @@ export class Consent<TProof = unknown> {
   /**
    * The runtime gate: may the host process `purpose` for `subjectRef`? Pass
    * `requiredVersion` to also require the consent be for the current policy
-   * version — when the subject granted an older version the result is `stale`
-   * (and not `granted`) so the host re-prompts.
+   * version — when the granted `version` differs from it (string inequality, not
+   * version ordering) the result is `stale` (and not `granted`) so the host
+   * re-prompts.
    */
   check(
     ctx: RunQueryCtx,
@@ -262,8 +263,8 @@ export class Consent<TProof = unknown> {
   /**
    * Page the immutable consent ledger for one `(subjectRef, purpose)` pair,
    * newest-first. Returns the standard Convex pagination envelope with each event
-   * narrowed to the typed view — the full proof trail for an audit or a data
-   * subject request.
+   * narrowed to the typed view — the retained proof trail (events already pruned
+   * are gone) for an audit or a data subject request.
    */
   async history(
     ctx: RunQueryCtx,
