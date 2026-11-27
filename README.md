@@ -53,6 +53,12 @@ Peer dependency: `convex@^1.45.0`. The command installs the latest stable
 release; use `@vllnt/convex-consent@canary` for the newest pre-release build
 from `main`, and pin a resolved canary version for reproducible installs.
 
+## For coding agents
+
+The docs are bundled in this package at
+`node_modules/@vllnt/convex-consent/docs/` and match the installed version. Read
+them, and `llms.txt`, before writing code that uses the package.
+
 ## Quick start
 
 After mounting, run `pnpm exec convex dev` to generate `components.consent`.
@@ -152,8 +158,8 @@ Full reference: [docs/API.md](docs/API.md).
   cannot extend its retention. Export evidence before expiry if your policy
   requires longer storage; this package alone does not establish legal
   compliance.
-- `record` and `withdraw` throw `INVALID_ARGUMENT` for an empty `subjectRef`,
-  `purpose` or `version`.
+- `record` throws `INVALID_ARGUMENT` for an empty `subjectRef`, `purpose` or
+  `version`; `withdraw` for an empty `subjectRef` or `purpose`.
 - `withdraw` throws `NO_CONSENT` for an unrecorded pair and `NOT_GRANTED` for a
   non-granted current decision; it is not an idempotent revoke.
 - Mount separately with `app.use(consent, { name: "marketingConsent" })` and
@@ -211,22 +217,39 @@ register(t);
 heading and local links without generating a source bundle.
 
 [API reference](docs/API.md) · [LLM index](llms.txt) ·
-[Security policy](SECURITY.md)
+[Security policy](https://github.com/vllnt/convex-consent/blob/main/SECURITY.md)
+
+## Related packages
+
+- [`@vllnt/convex-suppression`](https://oss.vllnt.com/packages/convex-suppression)
+  — a do-not-contact suppression list, hash-keyed and channel-aware. Use it to
+  stop contacting an address on a channel; use `@vllnt/convex-consent` for
+  per-purpose, versioned consent decisions with an append-only history.
+- [`@vllnt/convex-email`](https://oss.vllnt.com/packages/convex-email) — a
+  durable outbound transactional email queue. It sends; it does not store
+  consent. Call `check` in your own code before enqueueing a message that needs
+  consent.
+- [`@vllnt/analytics`](https://oss.vllnt.com/packages/analytics) — privacy-first
+  analytics with consent management and React integration. Use it to track usage
+  in a React app; use `@vllnt/convex-consent` when you need a durable,
+  auditable, server-side record of decisions for any purpose.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+See
+[CONTRIBUTING.md](https://github.com/vllnt/convex-consent/blob/main/CONTRIBUTING.md).
 
 ## Author
 
 Built by [bntvllnt](https://github.com/bntvllnt) ·
 [bntvllnt.com](https://bntvllnt.com) · [X @bntvllnt](https://x.com/bntvllnt)
 
-Part of the [@vllnt](https://github.com/vllnt) Convex component fleet —
-[vllnt.com](https://vllnt.com)
-
 If this is useful, [sponsor the work](https://github.com/sponsors/bntvllnt).
 
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+---
+
+Part of vllnt oss: https://oss.vllnt.com

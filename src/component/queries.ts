@@ -35,9 +35,10 @@ function stateView(s: Doc<"consentState">) {
  * The runtime gate: may the host process `purpose` for `subjectRef`? Reads the
  * O(1) current-state projection. `granted` is `true` only when the latest
  * decision is `granted` AND — if a `requiredVersion` is supplied — the consented
- * `version` matches it. When the subject granted an older version than required,
- * `stale` is `true` (and `granted` is `false`) so the host re-prompts. With no
- * recorded consent every field is `null`/`false`.
+ * `version` matches it. When the granted `version` differs from `requiredVersion`
+ * (string inequality, not version ordering), `stale` is `true` (and `granted`
+ * is `false`) so the host re-prompts. With no recorded consent every field is
+ * `null`/`false`.
  */
 export const check = query({
   args: {
@@ -108,7 +109,8 @@ export const getStatesForSubject = query({
  * Page the immutable consent ledger for one `(subjectRef, purpose)` pair,
  * newest-first via the `by_subject_purpose_at` index. Takes the standard Convex
  * `paginationOpts` and returns the standard paginated envelope (`page`, `isDone`,
- * `continueCursor`) — the full proof trail for an audit or a data subject request.
+ * `continueCursor`) — the retained proof trail (events already pruned are gone)
+ * for an audit or a data subject request.
  */
 export const history = query({
   args: {

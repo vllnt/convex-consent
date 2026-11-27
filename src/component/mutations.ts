@@ -137,17 +137,18 @@ export const withdraw = mutation({
 });
 
 /**
- * Delete up to `batch` superseded ledger events whose `at < before`, oldest first
- * via the `by_at` index, and return the count removed in the first pass. `before`
- * defaults to the server clock (`Date.now()`) when omitted, so the built-in cron
- * sweeps exactly the events stale as of the run. If a full batch was removed there
- * may be more, so the sweep self-reschedules through `ctx.scheduler` until a short
- * batch signals the tail is clean.
+ * Delete up to `batch` ledger events whose `at < before`, oldest first via the
+ * `by_at` index, and return the count removed in the first pass. `before`
+ * defaults to the server clock minus the 365-day retention window when omitted,
+ * so the built-in cron sweeps exactly the events past retention as of the run. If
+ * a full batch was removed there may be more, so the sweep self-reschedules
+ * through `ctx.scheduler` until a short batch signals the tail is clean.
  *
- * Only the historical `consentEvents` ledger is pruned — the `consentState`
- * projection is the live gate and is never swept, so a host that prunes old proof
- * still gets the correct current decision. Idempotent: only ever removes
- * already-past-retention rows.
+ * Only the `consentEvents` ledger is pruned — the `consentState` projection is
+ * the live gate and is never swept, so a host that prunes old proof still gets
+ * the correct current decision. Events are not checked for being superseded, so
+ * the proof for a pair's current decision can be deleted too. Idempotent: only
+ * ever removes already-past-retention rows.
  */
 export const prune = mutation({
   args: { before: v.optional(v.number()), batch: v.number() },

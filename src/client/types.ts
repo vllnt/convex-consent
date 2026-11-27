@@ -9,8 +9,9 @@ export type ConsentDecision = "granted" | "denied" | "withdrawn";
 /**
  * Validates and narrows an opaque stored value to a host type `T` at the client
  * boundary. Receives the raw value the component returned (`unknown`) and MUST
- * return a typed `T` or throw. A `convex/values` validator's `.parse` (or a Zod
- * `.parse`) fits directly; omit it to keep the value unvalidated.
+ * return a typed `T` or throw. A hand-written parser or a Zod `.parse` fits;
+ * `convex/values` validators have no `.parse`. Omit it to keep the value
+ * unvalidated.
  *
  * @typeParam T - The host's stored type (the consent `proof`).
  */
@@ -50,7 +51,7 @@ export interface ConsentState {
 export interface ConsentCheck {
   /** The gate: `true` only when the latest decision is `granted` and the version matches any requirement. */
   granted: boolean;
-  /** `true` when a `granted` decision is for an older version than the one now required — re-prompt. */
+  /** `true` when a `granted` decision has a `version` different from `requiredVersion` (string inequality, not version ordering) — re-prompt. */
   stale: boolean;
   /** The current decision, or `null` if none was ever recorded. */
   decision: ConsentDecision | null;

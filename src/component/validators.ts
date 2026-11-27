@@ -57,8 +57,9 @@ export const consentStateView = v.object({
  * The answer to "may I process `<purpose>` for `<subject>`?". `granted` is the
  * gate: `true` only when the latest decision is `granted` AND its `version`
  * matches the host-supplied `requiredVersion` (or no version was required).
- * `stale` is `true` when the subject granted an older policy version than the one
- * now required — the host re-prompts. `decision`/`version`/`at` mirror the
+ * `stale` is `true` when a `granted` decision has a `version` different from
+ * `requiredVersion` (string inequality, not version ordering) — the host
+ * re-prompts. `decision`/`version`/`at` mirror the
  * current state (all `null` when no event was ever recorded).
  */
 export const consentCheckView = v.object({
