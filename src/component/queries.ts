@@ -36,8 +36,9 @@ function stateView(s: Doc<"consentState">) {
  * O(1) current-state projection. `granted` is `true` only when the latest
  * decision is `granted` AND — if a `requiredVersion` is supplied — the consented
  * `version` matches it. When the granted `version` differs from `requiredVersion`
- * (string inequality, not version ordering), `stale` is `true` (and `granted` is `false`) so the host re-prompts. With no
- * recorded consent every field is `null`/`false`.
+ * (string inequality, not version ordering), `stale` is `true` (and `granted`
+ * is `false`) so the host re-prompts. With no recorded consent every field is
+ * `null`/`false`.
  */
 export const check = query({
   args: {

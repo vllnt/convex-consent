@@ -224,7 +224,7 @@ heading and local links without generating a source bundle.
 - [`@vllnt/convex-suppression`](https://oss.vllnt.com/packages/convex-suppression)
   — a do-not-contact suppression list, hash-keyed and channel-aware. Use it to
   stop contacting an address on a channel; use `@vllnt/convex-consent` for
-  per-purpose, versioned consent decisions with a full history.
+  per-purpose, versioned consent decisions with an append-only history.
 - [`@vllnt/convex-email`](https://oss.vllnt.com/packages/convex-email) — a
   durable outbound transactional email queue. It sends; it does not store
   consent. Call `check` in your own code before enqueueing a message that needs

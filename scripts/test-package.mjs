@@ -7,7 +7,8 @@ import process from "node:process";
  * file is present, no Markdown outside the shipped docs set is packed (so no
  * contributor or internal doc), and every `llms.txt` link to a shipped file is
  * relative and resolves inside the tarball. Run after `pnpm build` so `dist`
- * exists. Test, spec and `.env` files are denied by `check-package-contents.sh`.
+ * exists. The rules for test, spec and `.env` files live in
+ * `check-package-contents.sh`.
  */
 
 const required = [
