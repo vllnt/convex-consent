@@ -479,7 +479,13 @@ function checkIdentity(texts, parts, metadata) {
   const description = String(metadata.description);
   const readme = String(texts["README.md"]);
   const title = readme.indexOf("\n");
-  const intro = readme.slice(title, readme.indexOf("\n## ", title)).trim();
+  const intro = readme
+    .slice(title, readme.indexOf("\n## ", title))
+    .replace(
+      /!\[[^\]]*\]\(https:\/\/raw\.githubusercontent\.com\/vllnt\/[^)]+\/\.github\/assets\/thumbnail\.png\)/g,
+      "",
+    )
+    .trim();
   const sentence = intro.replaceAll(/\s*\n\s*/gu, " ");
   assert.equal(sentence, description, "README intro: package.json description");
   const summary = String(texts["llms.txt"]).split("\n");

@@ -3,6 +3,8 @@
 TypeScript Convex component for GDPR consent: append-only ledger of granted,
 denied and withdrawn decisions per subject and purpose, with a version check.
 
+![Consent Ledger — @vllnt/convex-consent](https://raw.githubusercontent.com/vllnt/convex-consent/main/.github/assets/thumbnail.png)
+
 ## For coding agents
 
 Docs for the installed version are in `node_modules/@vllnt/convex-consent/`:
