@@ -22,8 +22,8 @@ All notable changes to this project are documented here. The format is based on
 - Breaking: `record` rejects an empty `subjectRef`, `purpose` or `version`, and `withdraw` an
   empty `subjectRef` or `purpose`, with `ConvexError({ code: "INVALID_ARGUMENT" })`; 0.1.0
   accepted them. Pass non-empty strings: `record` stored empty values as meaningless ledger rows.
-  Existing rows with empty values stay readable through `check` and `getState` but can no longer
-  be updated or withdrawn.
+  Rows that 0.1.0 stored with an empty `subjectRef` or `purpose` stay readable through `check` and
+  `getState` but can no longer be updated or withdrawn.
 - `engines.node` is now `>=20` (was `>=18`), what convex 1.45 itself requires. Run on Node.js 20
   or later, and 22 or later with convex 1.49 and newer.
 - The peer dependency is unchanged: `convex@^1.45.0`.

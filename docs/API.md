@@ -300,7 +300,8 @@ component runs. Errors thrown by a `proofValidator` are the host's own errors.
 ## Built-in cron
 
 Every mount registers its own cron job. Its first run happens right after the
-mount is first deployed, then every 24 hours; redeploying does not add a run:
+mount is first deployed, then every 24 hours; redeploying an unchanged cron does
+not add a run:
 
 | Job             | Cadence        | Action                                                                  |
 | --------------- | -------------- | ----------------------------------------------------------------------- |

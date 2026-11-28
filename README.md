@@ -356,12 +356,13 @@ not a `ConvexError` from the component.
   `granted`. The `withdrawn` event keeps the version of the grant it replaces.
 - `record` rejects an empty `subjectRef`, `purpose` or `version`, and `withdraw`
   an empty `subjectRef` or `purpose` (`INVALID_ARGUMENT`). Reads with empty
-  strings do not throw; they find no consent.
+  strings do not throw; they find no consent unless 0.1.0, which accepted empty
+  strings, stored one.
 - Ledger events are kept 365 days. Every mount has its own built-in cron that
   runs `prune` with batch 200 right after the mount is first deployed, then
-  every 24 hours; redeploying does not add a run. It cannot be turned off or
-  reconfigured. A later `before` in your own `prune` call cannot keep events
-  longer.
+  every 24 hours; redeploying an unchanged cron does not add a run. It cannot be
+  turned off or reconfigured. A later `before` in your own `prune` call cannot
+  keep events longer.
 - `prune` deletes events by age only, including the proof of a subject's current
   decision. The current state is never deleted, so `check` and `getState` still
   answer after the proof is gone. Export proof first if you must keep it longer.
