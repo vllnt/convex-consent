@@ -1,6 +1,6 @@
 {
   "name": "@vllnt/convex-consent",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "TypeScript Convex component for GDPR consent: append-only ledger of granted, denied and withdrawn decisions per subject and purpose, with a version check.",
   "license": "MIT",
   "type": "module",
@@ -90,7 +90,7 @@
     "url": "https://github.com/vllnt/convex-consent"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "publishConfig": {
     "access": "public"

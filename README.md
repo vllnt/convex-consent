@@ -356,10 +356,13 @@ not a `ConvexError` from the component.
   `granted`. The `withdrawn` event keeps the version of the grant it replaces.
 - `record` rejects an empty `subjectRef`, `purpose` or `version`, and `withdraw`
   an empty `subjectRef` or `purpose` (`INVALID_ARGUMENT`). Reads with empty
-  strings do not throw; they find no consent.
-- Ledger events are kept 365 days. A built-in cron in every mount runs `prune`
-  every 24 hours with batch 200, and cannot be turned off or reconfigured. A
-  later `before` in your own `prune` call cannot keep events longer.
+  strings do not throw; they find no consent unless 0.1.0, which accepted empty
+  strings, stored one.
+- Ledger events are kept 365 days. Every mount has its own built-in cron that
+  runs `prune` with batch 200 right after the mount is first deployed, then
+  every 24 hours; redeploying an unchanged cron does not add a run. It cannot be
+  turned off or reconfigured. A later `before` in your own `prune` call cannot
+  keep events longer.
 - `prune` deletes events by age only, including the proof of a subject's current
   decision. The current state is never deleted, so `check` and `getState` still
   answer after the proof is gone. Export proof first if you must keep it longer.
@@ -371,7 +374,9 @@ not a `ConvexError` from the component.
 - Without `proofValidator`, `proof` is not checked: it is stored as given (any
   Convex value) and typed as `TProof` on read.
 - `getStatesForSubject` reads all purposes of a subject in one query, with no
-  pagination; keep the number of purposes per subject small.
+  pagination; keep the number of purposes per subject small. Results are in
+  index order of `purpose`: by UTF-8 bytes (Unicode code point order), not
+  locale, so uppercase sorts before lowercase: `Alpha` comes before `ads`.
 - Every `at` is the server time in milliseconds. No method lets the caller set
   an event's `at`.
 - The component does not read auth. Never accept a `subjectRef` from the client
@@ -382,8 +387,8 @@ not a `ConvexError` from the component.
 - Peer dependency: `convex@^1.45.0`. CI runs the unit tests on the locked convex
   version (1.51.0), and type-checks and runs the packed package against convex
   1.45.0.
-- Node.js: `engines` is `>=18`, but convex itself needs Node.js 20 or later
-  (1.45 to 1.48) and 22 or later (1.49 and newer). ES modules only.
+- Node.js: `engines` is `>=20`, matching convex 1.45 to 1.48; convex 1.49 and
+  newer needs Node.js 22 or later. ES modules only.
 - `@vllnt/convex-consent/test` needs `convex-test`, `vitest`, `vite` and
   `@edge-runtime/vm`, with the Vitest config shown under Testing.
 - React: not applicable. The package is backend-only and has no `./react` entry;

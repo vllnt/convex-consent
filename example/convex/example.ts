@@ -30,7 +30,8 @@ const strict = new Consent<{ policyHash: string }>(components.consent, {
     ) {
       throw new Error("invalid proof: expected { policyHash: string }");
     }
-    return value as { policyHash: string };
+    // Return only the known field: the validator's output is what gets stored.
+    return { policyHash: (value as { policyHash: string }).policyHash };
   },
 });
 
