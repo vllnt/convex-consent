@@ -60,6 +60,9 @@ All notable changes to this project are documented here. The format is based on
 
 ### Fixed
 
+- The 7-day release-age gate now applies: pnpm 10 ignores `minimumReleaseAge` in the
+  `package.json` `pnpm` field, so it moves (with its `@vllnt/*` exclusion) to a settings-only
+  `pnpm-workspace.yaml`. Renovate waits the same 7 days, except for `@vllnt/**` packages.
 - `record` rejects an empty `subjectRef`, `purpose` or `version`, and `withdraw` an empty
   `subjectRef` or `purpose`, with `ConvexError({ code: "INVALID_ARGUMENT" })`.
 - `@vllnt/convex-consent/test` now type-checks under `moduleResolution: nodenext`
