@@ -42,12 +42,12 @@ Omit it to leave the opaque proof unvalidated.
 
 ## Entry points
 
-| Import                                       | Provides                                                                                                                                                              |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@vllnt/convex-consent`                      | The `Consent` class and the types `ConsentComponent`, `ConsentCheck`, `ConsentDecision`, `ConsentEvent`, `ConsentOptions`, `ConsentState`, `Parser`, `RecordOptions`. |
-| `@vllnt/convex-consent/convex.config`        | The component definition for `app.use(...)`.                                                                                                                          |
-| `@vllnt/convex-consent/test`                 | `register(t, name = "consent")` mounts the component into a `convex-test` instance. Needs `convex-test` and Vite's `import.meta.glob` in the consuming app.           |
-| `@vllnt/convex-consent/_generated/component` | The `ComponentApi` type only.                                                                                                                                         |
+| Import                                       | Provides                                                                                                                                                                |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@vllnt/convex-consent`                      | The `Consent` class and the types `ConsentComponent`, `ConsentCheck`, `ConsentDecision`, `ConsentEvent`, `ConsentOptions`, `ConsentState`, `Parser`, `RecordOptions`.   |
+| `@vllnt/convex-consent/convex.config`        | The component definition for `app.use(...)`.                                                                                                                            |
+| `@vllnt/convex-consent/test`                 | `register(t, name = "consent")` mounts the component into any host `convexTest(schema, modules)`. Needs `convex-test` and Vite's `import.meta.glob` (run under Vitest). |
+| `@vllnt/convex-consent/_generated/component` | The `ComponentApi` type only.                                                                                                                                           |
 
 There is no `./react` entry; the package is backend-only.
 

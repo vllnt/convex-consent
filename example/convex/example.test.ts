@@ -57,8 +57,8 @@ describe("consent — record + check (the gate)", () => {
       paginationOpts: { cursor: null, numItems: 10 },
     });
     expect(hist.page).toHaveLength(1);
-    expect(hist.page[0].decision).toBe("granted");
-    expect(hist.page[0].proof).toEqual({ ip: "1.2.3.4" });
+    expect(hist.page[0]?.decision).toBe("granted");
+    expect(hist.page[0]?.proof).toEqual({ ip: "1.2.3.4" });
   });
 
   test("record denied → check fails, not stale", async () => {
@@ -250,7 +250,7 @@ describe("consent — withdraw (GDPR Art. 7(3))", () => {
       paginationOpts: { cursor: null, numItems: 10 },
     });
     expect(hist.page.map((e) => e.decision)).toEqual(["withdrawn", "granted"]);
-    expect(hist.page[0].proof).toEqual({ reason: "user request" });
+    expect(hist.page[0]?.proof).toEqual({ reason: "user request" });
   });
 
   test("withdraw with no prior consent throws NO_CONSENT (adversarial)", async () => {
@@ -368,7 +368,7 @@ describe("consent — history (paginated ledger)", () => {
     });
     expect(second.page).toHaveLength(1);
     expect(second.isDone).toBe(true);
-    expect(second.page[0].at).toBe(0);
+    expect(second.page[0]?.at).toBe(0);
   });
 
   test("history on an empty pair returns an empty done page", async () => {
@@ -404,7 +404,7 @@ describe("consent — host proof validator + defaultVersion (strict client)", ()
       purpose: "analytics",
       paginationOpts: { cursor: null, numItems: 10 },
     });
-    expect(hist.page[0].proof).toEqual({ policyHash: "abc" });
+    expect(hist.page[0]?.proof).toEqual({ policyHash: "abc" });
   });
 
   test("invalid proof is rejected before storage (record)", async () => {
