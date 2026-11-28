@@ -198,8 +198,9 @@ Tests run against the real component runtime via `convex-test`
 ### Testing your app
 
 `@vllnt/convex-consent/test` exports `register(t, name = "consent")` to mount
-the component in a `convex-test` instance. It needs `convex-test` and `vitest`
-(with Vite's `import.meta.glob`) in the consuming app:
+the component in your app's `convex-test` instance, whatever tables your schema
+has. It needs `convex-test` and `vitest` (with Vite's `import.meta.glob`) in the
+consuming app:
 
 ```ts
 /// <reference types="vite/client" />
