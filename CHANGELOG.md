@@ -4,82 +4,50 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.1] - 2026-11-28
+## [0.2.0] - 2026-11-28
 
 ### Added
 
-- Ship `docs/API.md`, `CHANGELOG.md` and `llms.txt` in the npm tarball, so coding agents read
+- `docs/API.md`, `CHANGELOG.md` and `llms.txt` ship in the npm tarball, so coding agents read
   docs that match the installed version from `node_modules/@vllnt/convex-consent/`. `llms.txt`
-  links shipped files by relative path and gains a "For coding agents" note and an ecosystem
-  link; the README gains the same note.
-- `docs/API.md` documents the package entry points (`./test`, `./convex.config`,
-  `./_generated/component`) and the client options.
-- `pnpm test:package`, which `pnpm build` now runs (so CI and the publish workflow run it), fails
-  when a required file is missing from the tarball, when Markdown outside the shipped docs set (such
-  as a contributor or internal doc) is packed, or when an `llms.txt` link does not resolve inside the
-  tarball.
-- `pnpm test:package` imports every `package.json` `exports` entry point from the installed
-  tarball: it type-checks `.`, `./test`, `./convex.config`, `./convex.config.js`,
-  `./_generated/component` and `./_generated/component.js` (Bundler and NodeNext), imports
-  `.`, both `convex.config` entries and `./package.json` in Node, and fails when an exports key has
-  no coverage.
-- `pnpm check:docs` (run by `pnpm lint`) enforces the docs contract in
-  `scripts/check-documentation.mjs`: README sections and order, install and first example in the
-  first 40 lines, tagged code blocks, resolving relative links and anchors, every public export
-  (with a TSDoc summary) and every thrown error code documented in the README and `docs/API.md`,
-  and the shared Links block, footer and `llms.txt` Ecosystem block. `pnpm test:package` runs the
-  same contract on the installed tarball, type-checks every README example against the built
-  package (convex 1.45.0, `Bundler` and `NodeNext` resolution) and runs the README test example.
+  links the shipped files by relative path.
+- `docs/API.md` documents every export under its own heading, the package entry points
+  (`./test`, `./convex.config`, `./_generated/component`), the client options, which `ctx` each
+  method needs, the data model, every message per error code and the built-in cron.
 - TSDoc summary on the `convex.config` default export and an `@see` link to the package page on
   `Consent`. Comment-only; no runtime or type change.
 
 ### Changed
 
-- The README is rewritten for coding agents: when to use it (and what to use instead), install,
-  a quick start with a host mutation and query, an API table of every export, common tasks,
-  every error code with its cause and fix, limits and gotchas, compatibility, testing, and links.
-  `docs/API.md` gains one heading per export, the data model, every message per error code and
-  the built-in cron. `llms.txt` gains a "When to use" section, links to both error tables and the
-  shared ecosystem links. "Related packages" now says there are none; the former entries move to
-  "When to use".
-- One description, used in `package.json`, the README and `llms.txt`: "TypeScript Convex
-  component for GDPR consent: append-only ledger of granted, denied and withdrawn decisions per
-  subject and purpose, with a version check." Keywords now cover the problem and the stack.
-- Drop the `consentState.by_subject` index: it was a prefix of `by_subject_purpose`, which now serves
-  `getStatesForSubject` (results ordered by `purpose`). Saves one index entry per state row.
-- `homepage` points at the package page on oss.vllnt.com.
-- Canary publishes on every push to `main` that touches the package or its shipped docs; the
-  repository-variable gate is removed. It publishes under the `canary` dist-tag only and never moves
-  `latest`.
-- Upgrade dev tooling to convex 1.51, convex-test 0.0.73, vitest and `@vitest/coverage-v8` 5.1.1,
-  vite 8.3, prettier 3.10 and `@vllnt/typescript` 3 (with `exactOptionalPropertyTypes` kept off),
-  and override the vulnerable transitive `handlebars`, `deepmerge-ts` and `minimatch` releases.
-  The built `dist` and the `convex@^1.45.0` peer range are unchanged.
-- Adopt pnpm 10 with a release-age gate; releases are published only from CI with npm
-  trusted publishing and provenance.
+- Breaking: `record` rejects an empty `subjectRef`, `purpose` or `version`, and `withdraw` an
+  empty `subjectRef` or `purpose`, with `ConvexError({ code: "INVALID_ARGUMENT" })`; 0.1.0
+  accepted them. Pass non-empty strings: `record` stored empty values as meaningless ledger rows.
+- `engines.node` is now `>=20` (was `>=18`), what convex 1.45 itself requires. Run on Node.js 20
+  or later, and 22 or later with convex 1.49 and newer.
+- The peer dependency is unchanged: `convex@^1.45.0`.
+- Drop the `consentState.by_subject` index: it was a prefix of `by_subject_purpose`, which now
+  serves `getStatesForSubject`. Results are now in index order of `purpose` (by code unit, so
+  `Alpha` before `ads`) instead of creation order. No data migration is needed.
+- The README is rewritten for coding agents: when to use it, install, a quick start, an API table
+  of every export, every error code with its cause and fix, limits and gotchas, compatibility and
+  testing. `llms.txt` gains a "When to use" section and links to both error tables.
+- One description in `package.json`, the README and `llms.txt`; keywords cover the problem and the
+  stack; `homepage` points at the package page on oss.vllnt.com.
+- Internal: CI, tests, the release workflow (canary on every push to `main`, under the `canary`
+  dist-tag only), package and docs checks, a 7-day release-age gate and dev-dependency upgrades.
 
 ### Fixed
 
-- The 7-day release-age gate now applies: pnpm 10 ignores `minimumReleaseAge` in the
-  `package.json` `pnpm` field, so it moves (with its `@vllnt/*` exclusion) to a settings-only
-  `pnpm-workspace.yaml`. Renovate waits the same 7 days, except for `@vllnt/**` packages.
-- `pnpm test:package` installs the tarball in its lockfile-free temporary consumer under the same
-  release-age gate: it copies the repo's `pnpm-workspace.yaml` (`minimumReleaseAge` and its
-  `@vllnt/*` exclusion) into that consumer, which ignored it before.
-- `record` rejects an empty `subjectRef`, `purpose` or `version`, and `withdraw` an empty
-  `subjectRef` or `purpose`, with `ConvexError({ code: "INVALID_ARGUMENT" })`.
-- `@vllnt/convex-consent/test` now type-checks under `moduleResolution: nodenext`
-  (explicit `.js` relative imports, Vite client types referenced).
-- Documentation drift: the shipped `prune` comments now say events are not checked for being
-  superseded and that `before` defaults to now minus 365 days; the `proofValidator` comments no
-  longer claim `convex/values` validators have a `.parse`; `docs/API.md` states which `ctx` each
-  method needs.
 - `register` from `@vllnt/convex-consent/test` accepts the host app's own
   `convexTest(hostSchema, modules)` instance: it was typed against the component schema, so a host
-  schema with its own tables failed with TS2345. Type-only; tests and the example are now
-  type-checked in CI (`pnpm typecheck:ci` runs `pnpm typecheck:tests`).
-- The package contents check now denies packed `*.spec.mts` and `*.spec.cts` files, like
-  `*.test.mts` and `*.test.cts`; its self-test runs in `pnpm test:package` (so in `pnpm build`).
+  schema with its own tables failed with TS2345. Type-only.
+- `@vllnt/convex-consent/test` now type-checks under `moduleResolution: nodenext`
+  (explicit `.js` relative imports, Vite client types referenced).
+- Documentation corrections in the shipped TSDoc and docs: `prune` deletes events by age, not only
+  superseded ones, and `before` defaults to now minus 365 days; `check` staleness is string
+  inequality, not version order; `history` returns only the events not yet pruned; without
+  `proofValidator` the stored `proof` is returned unchecked; `convex/values` validators have no
+  `.parse` to pass as `proofValidator`.
 
 ## [0.1.0] - 2026-09-01
 
