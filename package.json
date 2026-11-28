@@ -90,7 +90,7 @@
     "url": "https://github.com/vllnt/convex-consent"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "publishConfig": {
     "access": "public"
