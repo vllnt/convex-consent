@@ -336,6 +336,7 @@ it in the host with `error instanceof ConvexError` and read `error.data.code`.
 | Code               | Message                                                                                         | Cause                                                                                                     | Fix                                                                   |
 | ------------------ | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
 | `INVALID_ARGUMENT` | `subjectRef must be non-empty` (or `purpose`, `version`)                                        | `record` got an empty `subjectRef`, `purpose` or `version`; `withdraw` an empty `subjectRef` or `purpose` | Pass non-empty strings; do not pass `version: ""`                     |
+| `INVALID_ARGUMENT` | `subjectRef must be at most 512 characters (Unicode code points)` (or `purpose`, `version`) | `record` would create a new pair whose `subjectRef` or `purpose` is over 512 code points, or store a new `version` over 512 code points | Shorten or hash long refs and versions before `record` |
 | `NO_CONSENT`       | `no consent recorded for "<subjectRef>" / "<purpose>"`                                          | `withdraw` on a pair that has no recorded decision                                                        | Treat as "nothing to withdraw", or call `record(..., "withdrawn")`    |
 | `NOT_GRANTED`      | `consent for "<subjectRef>" / "<purpose>" is "<decision>", not "granted" — nothing to withdraw` | `withdraw` when the current decision is `denied` or already `withdrawn`                                   | Treat as "nothing to withdraw", or call `record(..., "withdrawn")`    |
 | `INVALID_BATCH`    | `batch must be an integer between 1 and 500`                                                    | `prune` got a `batch` below 1, above 500, fractional or not finite                                        | Pass an integer in 1..500, or omit it (default 200)                   |
@@ -358,6 +359,14 @@ not a `ConvexError` from the component.
   an empty `subjectRef` or `purpose` (`INVALID_ARGUMENT`). Reads with empty
   strings do not throw; they find no consent unless 0.1.0, which accepted empty
   strings, stored one.
+- `record` caps `subjectRef`, `purpose` and `version` at 512 characters, counted
+  as Unicode code points (an emoji is 1, not 2 as in JavaScript `.length`).
+  Longer values throw `INVALID_ARGUMENT`, but only for a new pair or a version
+  that differs from the pair's current one: a pair stored earlier with longer
+  values stays readable, can be re-recorded with the same version, and
+  `withdraw` is never capped. Shorten or hash long refs and versions before
+  `record`, but only those over the limit: `check` under a new ref finds no
+  consent, so keep the stored ref for existing pairs.
 - Ledger events are kept 365 days. Every mount has its own built-in cron that
   runs `prune` with batch 200 right after the mount is first deployed, then
   every 24 hours; redeploying an unchanged cron does not add a run. It cannot be

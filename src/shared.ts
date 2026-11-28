@@ -36,3 +36,11 @@ export const DEFAULT_RETENTION_MS = 31_536_000_000;
 /** Default page size for a `prune` pass before the sweep self-reschedules. */
 export const DEFAULT_PRUNE_BATCH = 200;
 export const MAX_PRUNE_BATCH = 500;
+
+/**
+ * Longest `subjectRef`, `purpose` or `version` that `record` stores for a new
+ * pair or a new version: 512 characters, counted as Unicode code points (not
+ * UTF-16 code units). Pairs and versions stored earlier with longer values stay
+ * readable and re-recordable with the same version.
+ */
+export const MAX_REF_LENGTH = 512;

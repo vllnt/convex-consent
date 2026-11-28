@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { api } from "./_generated/api.js";
 import { mutation } from "./_generated/server.js";
-import { DEFAULT_RETENTION_MS, MAX_PRUNE_BATCH } from "../shared.js";
+import { DEFAULT_RETENTION_MS, MAX_PRUNE_BATCH, MAX_REF_LENGTH } from "../shared.js";
 import { consentDecision, jsonValue } from "./validators.js";
 
 /** Reject empty identifiers: an empty ref/purpose/version would store a meaningless ledger row. */
@@ -11,6 +11,22 @@ function assertNonEmpty(fields: Record<string, string>): void {
       throw new ConvexError({
         code: "INVALID_ARGUMENT",
         message: `${name} must be non-empty`,
+      });
+    }
+  }
+}
+
+/**
+ * Reject values longer than {@link MAX_REF_LENGTH} Unicode code points
+ * (`[...value]`, so an emoji counts once, not as two UTF-16 code units).
+ */
+function assertMaxLength(fields: Record<string, string>): void {
+  for (const [name, value] of Object.entries(fields)) {
+    // A string never has more code points than UTF-16 units, so short values skip the count.
+    if (value.length > MAX_REF_LENGTH && [...value].length > MAX_REF_LENGTH) {
+      throw new ConvexError({
+        code: "INVALID_ARGUMENT",
+        message: `${name} must be at most ${MAX_REF_LENGTH} characters (Unicode code points)`,
       });
     }
   }
@@ -31,7 +47,10 @@ function assertNonEmpty(fields: Record<string, string>): void {
  * `prune`.
  *
  * @throws `ConvexError({ code: "INVALID_ARGUMENT" })` when `subjectRef`, `purpose`
- *   or `version` is empty.
+ *   or `version` is empty; or when a new pair has a `subjectRef` or `purpose`
+ *   longer than {@link MAX_REF_LENGTH} Unicode code points, or a `version` that
+ *   differs from the pair's current one is longer than that. A pair stored
+ *   earlier with longer values can still be re-recorded with the same version.
  */
 export const record = mutation({
   args: {
@@ -48,6 +67,18 @@ export const record = mutation({
       purpose: args.purpose,
       version: args.version,
     });
+    const existing = await ctx.db
+      .query("consentState")
+      .withIndex("by_subject_purpose", (q) =>
+        q.eq("subjectRef", args.subjectRef).eq("purpose", args.purpose),
+      )
+      .unique();
+    if (existing === null) {
+      assertMaxLength({ subjectRef: args.subjectRef, purpose: args.purpose });
+    }
+    if (existing?.version !== args.version) {
+      assertMaxLength({ version: args.version });
+    }
     const at = Date.now();
     await ctx.db.insert("consentEvents", {
       subjectRef: args.subjectRef,
@@ -58,12 +89,6 @@ export const record = mutation({
       at,
     });
 
-    const existing = await ctx.db
-      .query("consentState")
-      .withIndex("by_subject_purpose", (q) =>
-        q.eq("subjectRef", args.subjectRef).eq("purpose", args.purpose),
-      )
-      .unique();
     const projection = {
       subjectRef: args.subjectRef,
       purpose: args.purpose,

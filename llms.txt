@@ -13,7 +13,11 @@ overwrites the pair's row in `consentState`, which `check` reads with one index
 lookup. `check(ctx, subjectRef, purpose, requiredVersion?)` returns
 `{ granted, stale, decision, version, at }`; `stale` is `true` when a grant's
 version is not equal (string comparison) to `requiredVersion`. `withdraw`
-throws unless the current decision is `granted`. Errors are `ConvexError` with
+throws unless the current decision is `granted`. `record` throws
+`INVALID_ARGUMENT` for an empty value, or for a new pair's `subjectRef` or
+`purpose`, or a new `version`, longer than 512 characters (Unicode code
+points); pairs stored earlier with longer values stay readable and
+re-recordable with the same version, and `withdraw` is not capped. Errors are `ConvexError` with
 `data.code` `INVALID_ARGUMENT`, `NO_CONSENT`, `NOT_GRANTED`, `INVALID_BATCH` or
 `INVALID_BEFORE`. A built-in daily cron deletes ledger events older than 365
 days, including the proof of current decisions; `consentState` is never
