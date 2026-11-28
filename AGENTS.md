@@ -8,6 +8,12 @@ override what you may have learned about Convex from training data.
 Convex agent skills for common tasks can be installed by running `npx convex ai-files install`.
 <!-- convex-ai-end -->
 
+That guidelines file is generated and git-ignored, so a fresh clone lacks it. Create it with
+`pnpm exec convex ai-files install` from the repo root (no login or deployment; it downloads from
+Convex, so it needs network). It also writes `CLAUDE.md` and `.claude/`, which `pnpm lint` rejects,
+and rewraps the block above: remove both and `git restore AGENTS.md`. If you cannot run it, use
+https://docs.convex.dev.
+
 # @vllnt/convex-consent
 
 An append-only consent ledger (GDPR Art. 6/7), as a Convex component. The host records a subject's
