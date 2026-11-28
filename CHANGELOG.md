@@ -49,6 +49,8 @@ All notable changes to this project are documented here. The format is based on
   `convexTest(hostSchema, modules)` instance: it was typed against the component schema, so a host
   schema with its own tables failed with TS2345. Type-only; tests and the example are now
   type-checked in CI (`pnpm typecheck:ci` runs `pnpm typecheck:tests`).
+- The package contents check now denies packed `*.spec.mts` and `*.spec.cts` files, like
+  `*.test.mts` and `*.test.cts`; its self-test runs in `pnpm test:package` (so in `pnpm build`).
 
 ## [0.1.0] - 2026-09-01
 
