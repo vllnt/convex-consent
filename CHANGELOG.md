@@ -22,12 +22,15 @@ All notable changes to this project are documented here. The format is based on
 - Breaking: `record` rejects an empty `subjectRef`, `purpose` or `version`, and `withdraw` an
   empty `subjectRef` or `purpose`, with `ConvexError({ code: "INVALID_ARGUMENT" })`; 0.1.0
   accepted them. Pass non-empty strings: `record` stored empty values as meaningless ledger rows.
+  Existing rows with empty values stay readable through `check` and `getState` but can no longer
+  be updated or withdrawn.
 - `engines.node` is now `>=20` (was `>=18`), what convex 1.45 itself requires. Run on Node.js 20
   or later, and 22 or later with convex 1.49 and newer.
 - The peer dependency is unchanged: `convex@^1.45.0`.
 - Drop the `consentState.by_subject` index: it was a prefix of `by_subject_purpose`, which now
-  serves `getStatesForSubject`. Results are now in index order of `purpose` (by code unit, so
-  `Alpha` before `ads`) instead of creation order. No data migration is needed.
+  serves `getStatesForSubject`. Results are now sorted by `purpose` (UTF-8 byte order, so
+  `Alpha` before `ads`) instead of the order each purpose was first recorded. No data migration
+  is needed.
 - The README is rewritten for coding agents: when to use it, install, a quick start, an API table
   of every export, every error code with its cause and fix, limits and gotchas, compatibility and
   testing. `llms.txt` gains a "When to use" section and links to both error tables.

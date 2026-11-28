@@ -114,8 +114,9 @@ getStatesForSubject(ctx, subjectRef: string): Promise<ConsentState[]>
 ```
 
 The current state of every purpose recorded for `subjectRef`, in index order of
-`purpose`: by code unit, not locale, so uppercase sorts before lowercase (`Alpha`
-before `ads`). It reads them all in one query, without pagination.
+`purpose`: by UTF-8 bytes (Unicode code point order), not locale, so uppercase
+sorts before lowercase (`Alpha` before `ads`). It reads them all in one query,
+without pagination.
 
 ### `history`
 
@@ -298,8 +299,8 @@ component runs. Errors thrown by a `proofValidator` are the host's own errors.
 
 ## Built-in cron
 
-Every mount registers its own cron job. It runs once when the component is
-deployed (installed), then every 24 hours:
+Every mount registers its own cron job. Its first run happens right after the
+mount is first deployed, then every 24 hours; redeploying does not add a run:
 
 | Job             | Cadence        | Action                                                                  |
 | --------------- | -------------- | ----------------------------------------------------------------------- |

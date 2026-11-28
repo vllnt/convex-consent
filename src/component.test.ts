@@ -27,7 +27,7 @@ describe("consent component — indexes", () => {
     expect(states.every((s) => s.subjectRef === "u")).toBe(true);
   });
 
-  test("getStatesForSubject orders purposes by code unit, uppercase before lowercase", async () => {
+  test("getStatesForSubject orders purposes by UTF-8 bytes, uppercase before lowercase", async () => {
     const t = setup();
     for (const purpose of ["ads", "Alpha", "beta"]) {
       await t.mutation(api.mutations.record, { subjectRef: "o", purpose, decision: "granted", version: "1" });

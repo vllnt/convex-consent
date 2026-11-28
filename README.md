@@ -358,9 +358,10 @@ not a `ConvexError` from the component.
   an empty `subjectRef` or `purpose` (`INVALID_ARGUMENT`). Reads with empty
   strings do not throw; they find no consent.
 - Ledger events are kept 365 days. Every mount has its own built-in cron that
-  runs `prune` with batch 200 once when the component is deployed (installed),
-  then every 24 hours; it cannot be turned off or reconfigured. A later `before`
-  in your own `prune` call cannot keep events longer.
+  runs `prune` with batch 200 right after the mount is first deployed, then
+  every 24 hours; redeploying does not add a run. It cannot be turned off or
+  reconfigured. A later `before` in your own `prune` call cannot keep events
+  longer.
 - `prune` deletes events by age only, including the proof of a subject's current
   decision. The current state is never deleted, so `check` and `getState` still
   answer after the proof is gone. Export proof first if you must keep it longer.
@@ -373,8 +374,8 @@ not a `ConvexError` from the component.
   Convex value) and typed as `TProof` on read.
 - `getStatesForSubject` reads all purposes of a subject in one query, with no
   pagination; keep the number of purposes per subject small. Results are in
-  index order of `purpose` (by code unit, not locale), so uppercase sorts before
-  lowercase: `Alpha` comes before `ads`.
+  index order of `purpose`: by UTF-8 bytes (Unicode code point order), not
+  locale, so uppercase sorts before lowercase: `Alpha` comes before `ads`.
 - Every `at` is the server time in milliseconds. No method lets the caller set
   an event's `at`.
 - The component does not read auth. Never accept a `subjectRef` from the client
