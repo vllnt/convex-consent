@@ -62,7 +62,14 @@ before the call and its result is stored. `decision` may be `"withdrawn"`:
 unlike `withdraw`, `record` does not check the current decision.
 
 Throws `INVALID_ARGUMENT` when `subjectRef`, `purpose` or the resolved `version`
-is an empty string. Returns the event's `at`.
+is an empty string. Also throws `INVALID_ARGUMENT` when it would create a new
+pair whose `subjectRef` or `purpose` is longer than 512 characters, or store a
+`version` longer than 512 characters that differs from the pair's current
+version. Characters are counted as Unicode code points, not UTF-16 code units
+(JavaScript `.length`). The empty-value check runs first. A pair stored earlier
+with longer values stays readable and can be re-recorded with its current
+version; `withdraw` is not capped. Nothing is written when it throws. Returns
+the event's `at`.
 
 ### `withdraw`
 
@@ -289,6 +296,7 @@ The component throws `ConvexError` with `data: { code, message }`:
 | Code               | Thrown by            | Message                                                                                         | Meaning                                                                 |
 | ------------------ | -------------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | `INVALID_ARGUMENT` | `record`, `withdraw` | `<field> must be non-empty`                                                                     | `subjectRef`, `purpose` or (for `record`) `version` is an empty string. |
+| `INVALID_ARGUMENT` | `record`             | `<field> must be at most 512 characters (Unicode code points)`                                  | A new pair's `subjectRef` or `purpose`, or a `version` that differs from the pair's current one, is over 512 Unicode code points. |
 | `NO_CONSENT`       | `withdraw`           | `no consent recorded for "<subjectRef>" / "<purpose>"`                                          | The pair has no recorded decision.                                      |
 | `NOT_GRANTED`      | `withdraw`           | `consent for "<subjectRef>" / "<purpose>" is "<decision>", not "granted" — nothing to withdraw` | The current decision is `denied` or `withdrawn`.                        |
 | `INVALID_BATCH`    | `prune`              | `batch must be an integer between 1 and 500`                                                    | `batch` is below 1, above 500, fractional or not finite.                |
