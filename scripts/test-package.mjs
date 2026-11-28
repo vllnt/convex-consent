@@ -100,7 +100,7 @@ console.log(
   `OK    package tarball: ${packed.size} files, ${required.length} required present, ${links.length} llms.txt links checked`,
 );
 
-/** @type {{ name: string, version: string, exports: Record<string, unknown> }} */
+/** @type {{ name: string, version: string, packageManager: string, exports: Record<string, unknown> }} */
 const metadata = JSON.parse(readFileSync("package.json", "utf8"));
 
 // A strict consumer of every code entry point; `./package.json` is checked at runtime below.
@@ -154,6 +154,8 @@ try {
   writeFileSync(
     join(temporary, "package.json"),
     JSON.stringify({
+      // The repo's pinned pnpm: without it Corepack runs the latest pnpm in this directory.
+      packageManager: metadata.packageManager,
       pnpm: { ignoredBuiltDependencies: ["esbuild"] },
       private: true,
       type: "module",
