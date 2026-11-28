@@ -1,74 +1,36 @@
-<!-- Badges -->
-
-[![convex-component](https://img.shields.io/badge/convex-component-EE342F.svg)](https://www.convex.dev/components)
-[![npm](https://img.shields.io/npm/v/@vllnt/convex-consent.svg)](https://www.npmjs.com/package/@vllnt/convex-consent)
-[![CI](https://github.com/vllnt/convex-consent/actions/workflows/ci.yml/badge.svg)](https://github.com/vllnt/convex-consent/actions/workflows/ci.yml)
-[![license](https://img.shields.io/npm/l/@vllnt/convex-consent.svg)](./LICENSE)
-
 # @vllnt/convex-consent
 
-An append-only consent ledger (GDPR Art. 6/7), as a Convex component.
-
-```ts
-const consent = new Consent(components.consent);
-await consent.record(ctx, subjectRef, "analytics", "granted");
-const gate = await consent.check(ctx, subjectRef, "analytics"); // { granted, stale, ... }
-```
-
-The host records a subject's decision for a purpose (`granted` / `denied` /
-`withdrawn`) — each call appends an immutable ledger event (the stored evidence)
-and updates an O(1) current-state projection — then gates processing with
-`check`. When the policy version changes, a grant with a different version goes
-`stale` so the host re-prompts. Domain-neutral: a cookie gate, a marketing
-opt-in, a device-tied consent.
-
-## Features
-
-- **Record-and-gate** — `record` appends an immutable event and updates the
-  projection; `check` is the O(1) runtime gate before processing.
-- **Append-only ledger** — every decision is a `consentEvents` row, never
-  mutated; `history` pages the retained trail for an audit or DSR.
-- **Easy withdrawal** — `withdraw` (Art. 7(3)) revokes a held grant; withdrawing
-  something never granted throws a coded error.
-- **Version staleness** — `check` returns `stale: true` when a grant's policy
-  version differs from `requiredVersion` (string equality, not version
-  ordering).
-- **Server-sourced time** — every event's `at` is stamped from the server clock;
-  a caller can never supply a timestamp.
-- **Typed, opaque proof** — `Consent<TProof>` with an optional `proofValidator`
-  narrows the stored evidence at the boundary.
-- **Bounded prune + cron** — a daily cron sweeps all ledger events past
-  retention, including evidence for the current decision; the live projection is
-  never pruned.
-- **Mount-safe** — correct under multiple named `app.use` mounts (web +
-  marketing consent on one backend), each an isolated sandbox.
-
-## Installation
-
-```bash
-pnpm add @vllnt/convex-consent convex@^1.45.0
-```
-
-Peer dependency: `convex@^1.45.0`. The command installs the latest stable
-release; use `@vllnt/convex-consent@canary` for the newest pre-release build
-from `main`, and pin a resolved canary version for reproducible installs.
+TypeScript Convex component for GDPR consent: append-only ledger of granted,
+denied and withdrawn decisions per subject and purpose, with a version check.
 
 ## For coding agents
 
-The docs are bundled in this package at
-`node_modules/@vllnt/convex-consent/docs/` and match the installed version. Read
-them, and `llms.txt`, before writing code that uses the package.
+Docs for the installed version are in `node_modules/@vllnt/convex-consent/`:
+`docs/API.md`, `llms.txt`, `CHANGELOG.md` and the TypeScript `src/`. Read them
+before writing code against this package.
+
+## When to use
+
+- Use it when you must show what a subject agreed to, for which purpose, when.
+- Use it when server code must check consent before processing personal data.
+- Use it when a new policy version must make users answer the prompt again.
+- Do not use it when you need a do-not-contact list checked before each send: use
+  [`@vllnt/convex-suppression`](https://oss.vllnt.com/packages/convex-suppression).
+- Do not use it when you need cookie-banner state in a React app: use
+  [`@vllnt/analytics`](https://oss.vllnt.com/packages/analytics).
+
+## Install
+
+```bash
+pnpm add @vllnt/convex-consent
+```
 
 ## Quick start
 
-After mounting, run `pnpm exec convex dev` to generate `components.consent`.
-These internal functions are for trusted server callers. Public wrappers must
-derive and authorize the subject rather than trust a caller-supplied identity.
-
 ```ts
 // convex/convex.config.ts
-import { defineApp } from "convex/server";
 import consent from "@vllnt/convex-consent/convex.config";
+import { defineApp } from "convex/server";
 
 const app = defineApp();
 app.use(consent);
@@ -76,181 +38,445 @@ export default app;
 ```
 
 ```ts
-// convex/consent.ts — host owns auth; pass an opaque subjectRef in.
-import { components } from "./_generated/api";
-import { internalMutation, internalQuery } from "./_generated/server";
-import { v } from "convex/values";
+// convex/consent.ts
 import { Consent } from "@vllnt/convex-consent";
+import { ConvexError, v } from "convex/values";
 
-const consent = new Consent<{ policyHash: string }>(components.consent, {
-  defaultVersion: "2024-policy",
+import { components } from "./_generated/api.js";
+import { mutation, query } from "./_generated/server.js";
+
+export const POLICY_VERSION = "2026-11";
+
+const consent = new Consent(components.consent, {
+  defaultVersion: POLICY_VERSION,
+});
+
+export const setAnalyticsConsent = mutation({
+  args: { granted: v.boolean() },
+  returns: v.number(),
+  handler: async (ctx, { granted }) => {
+    const user = await ctx.auth.getUserIdentity();
+    if (user === null) throw new ConvexError("not signed in");
+    const decision = granted ? "granted" : "denied";
+    const { at } = await consent.record(
+      ctx,
+      user.tokenIdentifier,
+      "analytics",
+      decision,
+    );
+    return at;
+  },
+});
+
+export const mayTrack = query({
+  args: {},
+  returns: v.boolean(),
+  handler: async (ctx) => {
+    const user = await ctx.auth.getUserIdentity();
+    if (user === null) return false;
+    const gate = await consent.check(
+      ctx,
+      user.tokenIdentifier,
+      "analytics",
+      POLICY_VERSION,
+    );
+    return gate.granted;
+  },
+});
+```
+
+Run `npx convex dev` once to generate `components.consent`. The component never
+reads auth: the host derives `subjectRef` (here the user's `tokenIdentifier`)
+and decides who may record or read it. `purpose` is any string you choose.
+
+[![npm](https://img.shields.io/npm/v/@vllnt/convex-consent.svg)](https://www.npmjs.com/package/@vllnt/convex-consent)
+[![CI](https://github.com/vllnt/convex-consent/actions/workflows/ci.yml/badge.svg)](https://github.com/vllnt/convex-consent/actions/workflows/ci.yml)
+
+## API
+
+Full reference: [docs/API.md](docs/API.md).
+
+| Export                                                                     | Import from                                  | What it does                                                           |
+| -------------------------------------------------------------------------- | -------------------------------------------- | ---------------------------------------------------------------------- |
+| [`Consent`](docs/API.md#consent)                                           | `@vllnt/convex-consent`                      | Host client: `new Consent(components.consent, options?)`               |
+| [`record(ctx, subjectRef, purpose, decision, opts?)`](docs/API.md#record)  | `Consent` method, mutation                   | Append a decision to the ledger and update the current state; `{ at }` |
+| [`withdraw(ctx, subjectRef, purpose, proof?)`](docs/API.md#withdraw)       | `Consent` method, mutation                   | Withdraw a current grant; throws if there is none; `{ at }`            |
+| [`check(ctx, subjectRef, purpose, requiredVersion?)`](docs/API.md#check)   | `Consent` method, query                      | The gate: `{ granted, stale, decision, version, at }`                  |
+| [`getState(ctx, subjectRef, purpose)`](docs/API.md#getstate)               | `Consent` method, query                      | Current decision for one pair, or `null`                               |
+| [`getStatesForSubject(ctx, subjectRef)`](docs/API.md#getstatesforsubject)  | `Consent` method, query                      | Current decision for every purpose of one subject                      |
+| [`history(ctx, subjectRef, purpose, paginationOpts)`](docs/API.md#history) | `Consent` method, query                      | One page of ledger events, newest first                                |
+| [`prune(ctx, opts?)`](docs/API.md#prune)                                   | `Consent` method, mutation                   | Delete ledger events past retention; returns the first batch's count   |
+| [`ConsentComponent`](docs/API.md#consentcomponent)                         | `@vllnt/convex-consent` (type)               | Type of `components.consent`                                           |
+| [`ConsentOptions`](docs/API.md#consentoptions)                             | `@vllnt/convex-consent` (type)               | `{ defaultVersion?, proofValidator? }`                                 |
+| [`RecordOptions`](docs/API.md#recordoptions)                               | `@vllnt/convex-consent` (type)               | `{ version?, proof? }`                                                 |
+| [`ConsentDecision`](docs/API.md#consentdecision)                           | `@vllnt/convex-consent` (type)               | `"granted" \| "denied" \| "withdrawn"`                                 |
+| [`ConsentCheck`](docs/API.md#consentcheck)                                 | `@vllnt/convex-consent` (type)               | Result of `check`                                                      |
+| [`ConsentState`](docs/API.md#consentstate)                                 | `@vllnt/convex-consent` (type)               | Result of `getState`: `{ subjectRef, purpose, decision, version, at }` |
+| [`ConsentEvent`](docs/API.md#consentevent)                                 | `@vllnt/convex-consent` (type)               | One ledger event in `history`                                          |
+| [`Parser`](docs/API.md#parser)                                             | `@vllnt/convex-consent` (type)               | `(value: unknown) => T`, the shape of `proofValidator`                 |
+| [`default` (component config)](docs/API.md#convexconfig)                   | `@vllnt/convex-consent/convex.config`        | Pass to `app.use(...)`                                                 |
+| [`register`](docs/API.md#register)                                         | `@vllnt/convex-consent/test`                 | Mount the component in `convex-test`                                   |
+| [`ComponentApi`](docs/API.md#componentapi)                                 | `@vllnt/convex-consent/_generated/component` | Generated type of the mounted component                                |
+
+## Common tasks
+
+Store proof with each decision, typed and checked by your own parser. The parser
+runs on the proof you write and on every proof `history` returns:
+
+```ts
+// convex/proof.ts
+import { Consent } from "@vllnt/convex-consent";
+import { ConvexError, v } from "convex/values";
+
+import { components } from "./_generated/api.js";
+import { mutation } from "./_generated/server.js";
+
+type Proof = { policyHash: string; source: string };
+
+const consent = new Consent<Proof>(components.consent, {
+  defaultVersion: "2026-11",
   proofValidator: (value) => {
     if (
       typeof value !== "object" ||
       value === null ||
       !("policyHash" in value) ||
-      typeof value.policyHash !== "string"
+      typeof value.policyHash !== "string" ||
+      !("source" in value) ||
+      typeof value.source !== "string"
     ) {
-      throw new Error("Expected a policyHash string");
+      throw new Error("expected { policyHash, source } strings");
     }
-    return { policyHash: value.policyHash };
+    return { policyHash: value.policyHash, source: value.source };
   },
 });
 
-// Record a decision, gate processing on it, and withdraw — host resolves identity → subjectRef.
-export const setConsent = internalMutation({
-  args: {
-    subjectRef: v.string(),
-    purpose: v.string(),
-    granted: v.boolean(),
-    policyHash: v.string(),
+export const acceptNewsletter = mutation({
+  args: { policyHash: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { policyHash }) => {
+    const user = await ctx.auth.getUserIdentity();
+    if (user === null) throw new ConvexError("not signed in");
+    await consent.record(ctx, user.tokenIdentifier, "newsletter", "granted", {
+      proof: { policyHash, source: "settings page" },
+    });
+    return null;
   },
-  handler: async (ctx, { subjectRef, purpose, granted, policyHash }) => {
-    await consent.record(
-      ctx,
-      subjectRef,
-      purpose,
-      granted ? "granted" : "denied",
-      { proof: { policyHash } },
-    );
-  },
-});
-
-export const mayProcess = internalQuery({
-  args: { subjectRef: v.string(), purpose: v.string() },
-  handler: async (ctx, { subjectRef, purpose }) => {
-    const gate = await consent.check(ctx, subjectRef, purpose, "2024-policy");
-    return gate.granted; // false (gate.stale === true) if their grant has a different version
-  },
-});
-
-export const revoke = internalMutation({
-  args: { subjectRef: v.string(), purpose: v.string() },
-  handler: (ctx, { subjectRef, purpose }) =>
-    consent.withdraw(ctx, subjectRef, purpose),
 });
 ```
 
-Client options: `new Consent(component, { defaultVersion?, proofValidator? })`.
+Ask again after a policy change. `check` returns `stale: true` (and
+`granted: false`) when the grant's version is not equal to the version you
+require:
 
-## API Reference
+```ts
+// convex/prompt.ts
+import { Consent } from "@vllnt/convex-consent";
+import { v } from "convex/values";
 
-| Method                                              | Kind     | Result                                                                                        |
-| --------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------- |
-| `record(ctx, subjectRef, purpose, decision, opts?)` | mutation | `{ at }` (`decision`: `"granted" \| "denied" \| "withdrawn"`; `opts`: `{ version?; proof? }`) |
-| `withdraw(ctx, subjectRef, purpose, proof?)`        | mutation | `{ at }`                                                                                      |
-| `check(ctx, subjectRef, purpose, requiredVersion?)` | query    | `ConsentCheck` (`{ granted; stale; decision; version; at }`)                                  |
-| `getState(ctx, subjectRef, purpose)`                | query    | `ConsentState \| null`                                                                        |
-| `getStatesForSubject(ctx, subjectRef)`              | query    | `ConsentState[]`                                                                              |
-| `history(ctx, subjectRef, purpose, paginationOpts)` | query    | `PaginationResult<ConsentEvent>`                                                              |
-| `prune(ctx, opts?)`                                 | mutation | `number` (ledger events removed in the first bounded pass)                                    |
+import { components } from "./_generated/api.js";
+import { query } from "./_generated/server.js";
 
-Full reference: [docs/API.md](docs/API.md).
+const consent = new Consent(components.consent);
 
-## Options and limitations
+export const analyticsPrompt = query({
+  args: {},
+  returns: v.union(v.literal("ok"), v.literal("ask"), v.literal("ask again")),
+  handler: async (ctx) => {
+    const user = await ctx.auth.getUserIdentity();
+    if (user === null) return "ask";
+    const gate = await consent.check(
+      ctx,
+      user.tokenIdentifier,
+      "analytics",
+      "2026-11",
+    );
+    if (gate.granted) return "ok";
+    return gate.stale ? "ask again" : "ask";
+  },
+});
+```
 
-- `defaultVersion` defaults to `"1"` and is used for records that omit
-  `version`; `check` compares only an explicitly supplied `requiredVersion`.
-- `proofValidator` is a parser `(unknown) => TProof`, not `v.*.parse`.
-- `prune` defaults to 365 days and batch 200 (integer 1–500); non-finite cutoffs
-  throw `INVALID_BEFORE`, invalid batches `INVALID_BATCH`.
-- The default daily cron can delete even the latest event's proof. Custom calls
-  cannot extend its retention. Export evidence before expiry if your policy
-  requires longer storage; this package alone does not establish legal
-  compliance.
-- `record` throws `INVALID_ARGUMENT` for an empty `subjectRef`, `purpose` or
-  `version`; `withdraw` for an empty `subjectRef` or `purpose`.
-- `withdraw` throws `NO_CONSENT` for an unrecorded pair and `NOT_GRANTED` for a
-  non-granted current decision; it is not an idempotent revoke.
-- Mount separately with `app.use(consent, { name: "marketingConsent" })` and
-  `new Consent(components.marketingConsent)`.
+Withdraw consent. `withdraw` throws `NO_CONSENT` or `NOT_GRANTED` when there is
+no current grant; catch them to make a "revoke" button safe to press twice, or
+call `record(ctx, subjectRef, purpose, "withdrawn")`, which never checks (it
+writes a `withdrawn` event even when nothing was granted, with the client's
+`defaultVersion` unless you pass `version`):
 
-## Integrations
+```ts
+// convex/revoke.ts
+import { Consent } from "@vllnt/convex-consent";
+import { ConvexError, v } from "convex/values";
 
-Backend-only — no `./react` entry. Consent state is read through an ordinary
-reactive `useQuery` over the host's re-exported `check` / `getState` refs;
-consent proof is sensitive and gating is server-side, so there is no safe client
-surface.
+import { components } from "./_generated/api.js";
+import { mutation } from "./_generated/server.js";
 
-## Security
+const consent = new Consent(components.consent);
 
-- **Auth-agnostic** — the host authenticates the caller, decides who may
-  record/read a subject's consent, and passes an opaque `subjectRef`; tables are
-  sandboxed.
-- **Append-only** — a recorded decision and its proof can never be silently
-  rewritten; withdrawal is a new event, not an edit.
-- **Server-sourced time** — every event's `at` comes from `Date.now()` in the
-  handler, never the caller; the `proof` is opaque, narrowed by the host
-  validator.
+export const revoke = mutation({
+  args: { purpose: v.string() },
+  returns: v.boolean(),
+  handler: async (ctx, { purpose }) => {
+    const user = await ctx.auth.getUserIdentity();
+    if (user === null) throw new ConvexError("not signed in");
+    try {
+      await consent.withdraw(ctx, user.tokenIdentifier, purpose);
+      return true;
+    } catch (error) {
+      const code =
+        error instanceof ConvexError &&
+        typeof error.data === "object" &&
+        error.data !== null &&
+        "code" in error.data
+          ? error.data.code
+          : undefined;
+      if (code === "NO_CONSENT" || code === "NOT_GRANTED") return false;
+      throw error;
+    }
+  },
+});
+```
 
-See [docs/API.md](docs/API.md).
+Show a subject everything they agreed to, and page through the ledger for an
+audit or a data subject access request:
+
+```ts
+// convex/settings.ts
+import { Consent } from "@vllnt/convex-consent";
+import type { ConsentEvent, ConsentState } from "@vllnt/convex-consent";
+import type { PaginationOptions, PaginationResult } from "convex/server";
+
+import { components } from "./_generated/api.js";
+import type { QueryCtx } from "./_generated/server.js";
+
+const consent = new Consent(components.consent);
+
+export async function currentChoices(
+  ctx: QueryCtx,
+  subjectRef: string,
+): Promise<ConsentState[]> {
+  return consent.getStatesForSubject(ctx, subjectRef);
+}
+
+export async function ledgerPage(
+  ctx: QueryCtx,
+  subjectRef: string,
+  purpose: string,
+  paginationOpts: PaginationOptions,
+): Promise<PaginationResult<ConsentEvent>> {
+  return consent.history(ctx, subjectRef, purpose, paginationOpts);
+}
+```
+
+Delete ledger events sooner than the built-in 365 days. Run your own sweep with
+a shorter cutoff from a host cron; the built-in daily sweep keeps running:
+
+```ts
+// convex/retention.ts
+import { Consent } from "@vllnt/convex-consent";
+import { v } from "convex/values";
+
+import { components } from "./_generated/api.js";
+import { internalMutation } from "./_generated/server.js";
+
+const consent = new Consent(components.consent);
+const NINETY_DAYS = 90 * 24 * 60 * 60 * 1000;
+
+export const pruneOldProof = internalMutation({
+  args: {},
+  returns: v.number(),
+  handler: (ctx) =>
+    consent.prune(ctx, { before: Date.now() - NINETY_DAYS, batch: 500 }),
+});
+```
+
+```ts
+// convex/crons.ts
+import { cronJobs } from "convex/server";
+
+import { internal } from "./_generated/api.js";
+
+const crons = cronJobs();
+crons.daily(
+  "prune consent proof after 90 days",
+  { hourUTC: 3, minuteUTC: 0 },
+  internal.retention.pruneOldProof,
+);
+export default crons;
+```
+
+Keep two separate ledgers (for example web and marketing consent). Each named
+mount has its own tables and its own daily sweep:
+
+```ts
+// convex/convex.config.ts
+import consent from "@vllnt/convex-consent/convex.config";
+import { defineApp } from "convex/server";
+
+const app = defineApp();
+app.use(consent, { name: "webConsent" });
+app.use(consent, { name: "marketingConsent" });
+export default app;
+```
+
+```ts
+// convex/clients.ts
+import { Consent } from "@vllnt/convex-consent";
+
+import { components } from "./_generated/api.js";
+
+export const webConsent = new Consent(components.webConsent);
+export const marketingConsent = new Consent(components.marketingConsent);
+```
+
+## Errors and fixes
+
+The component throws a `ConvexError` whose `data` is `{ code, message }`. Catch
+it in the host with `error instanceof ConvexError` and read `error.data.code`.
+
+| Code               | Message                                                                                         | Cause                                                                                                     | Fix                                                                   |
+| ------------------ | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `INVALID_ARGUMENT` | `subjectRef must be non-empty` (or `purpose`, `version`)                                        | `record` got an empty `subjectRef`, `purpose` or `version`; `withdraw` an empty `subjectRef` or `purpose` | Pass non-empty strings; do not pass `version: ""`                     |
+| `NO_CONSENT`       | `no consent recorded for "<subjectRef>" / "<purpose>"`                                          | `withdraw` on a pair that has no recorded decision                                                        | Treat as "nothing to withdraw", or call `record(..., "withdrawn")`    |
+| `NOT_GRANTED`      | `consent for "<subjectRef>" / "<purpose>" is "<decision>", not "granted" — nothing to withdraw` | `withdraw` when the current decision is `denied` or already `withdrawn`                                   | Treat as "nothing to withdraw", or call `record(..., "withdrawn")`    |
+| `INVALID_BATCH`    | `batch must be an integer between 1 and 500`                                                    | `prune` got a `batch` below 1, above 500, fractional or not finite                                        | Pass an integer in 1..500, or omit it (default 200)                   |
+| `INVALID_BEFORE`   | `before must be finite`                                                                         | `prune` got `before` that is `NaN` or `Infinity`                                                          | Pass a millisecond timestamp, or omit it (default now minus 365 days) |
+
+Arguments of the wrong type (for example a number `purpose`, or a `decision`
+other than the three values) are rejected by Convex argument validation before
+the component runs. An error thrown by your `proofValidator` is your own error,
+not a `ConvexError` from the component.
+
+## Limits and gotchas
+
+- Version checks compare strings for equality, not order. With
+  `requiredVersion: "2"`, a grant for `"10"` or `"3"` is also `stale`.
+- `stale` is only ever `true` for a `granted` decision. `check` without
+  `requiredVersion` never returns `stale: true`.
+- `withdraw` throws `NO_CONSENT` or `NOT_GRANTED` unless the current decision is
+  `granted`. The `withdrawn` event keeps the version of the grant it replaces.
+- `record` rejects an empty `subjectRef`, `purpose` or `version`, and `withdraw`
+  an empty `subjectRef` or `purpose` (`INVALID_ARGUMENT`). Reads with empty
+  strings do not throw; they find no consent.
+- Ledger events are kept 365 days. A built-in cron in every mount runs `prune`
+  every 24 hours with batch 200, and cannot be turned off or reconfigured. A
+  later `before` in your own `prune` call cannot keep events longer.
+- `prune` deletes events by age only, including the proof of a subject's current
+  decision. The current state is never deleted, so `check` and `getState` still
+  answer after the proof is gone. Export proof first if you must keep it longer.
+- `prune` takes `batch` 1..500 (default 200), integers only; other values throw
+  `INVALID_BATCH`, they are not clamped. It returns only the count deleted by
+  the first batch and schedules the next batches itself when a batch is full.
+- `proofValidator` also runs on every proof `history` returns, so if you change
+  your proof type, old proof that no longer parses makes `history` throw.
+- Without `proofValidator`, `proof` is not checked: it is stored as given (any
+  Convex value) and typed as `TProof` on read.
+- `getStatesForSubject` reads all purposes of a subject in one query, with no
+  pagination; keep the number of purposes per subject small.
+- Every `at` is the server time in milliseconds. No method lets the caller set
+  an event's `at`.
+- The component does not read auth. Never accept a `subjectRef` from the client
+  without checking that the caller may act for it.
+
+## Compatibility
+
+- Peer dependency: `convex@^1.45.0`. CI runs the unit tests on the locked convex
+  version (1.51.0), and type-checks and runs the packed package against convex
+  1.45.0.
+- Node.js: `engines` is `>=18`, but convex itself needs Node.js 20 or later
+  (1.45 to 1.48) and 22 or later (1.49 and newer). ES modules only.
+- `@vllnt/convex-consent/test` needs `convex-test`, `vitest`, `vite` and
+  `@edge-runtime/vm`, with the Vitest config shown under Testing.
+- React: not applicable. The package is backend-only and has no `./react` entry;
+  read consent in the browser through your own query, such as `mayTrack` above.
 
 ## Testing
 
-```bash
-pnpm test           # single run
-pnpm test:coverage  # enforced 100% on covered files
-```
-
-Tests run against the real component runtime via `convex-test`
-(`@edge-runtime/vm`), not mocks.
-
-### Testing your app
-
-`@vllnt/convex-consent/test` exports `register(t, name = "consent")` to mount
-the component in your app's `convex-test` instance, whatever tables your schema
-has. It needs `convex-test` and `vitest` (with Vite's `import.meta.glob`) in the
-consuming app:
+Mount the component in your own `convex-test` suite with `register`. Use the
+Vitest settings `convex-test` recommends (edge runtime, `convex-test` inlined):
 
 ```ts
-/// <reference types="vite/client" />
-import { convexTest } from "convex-test";
-import { register } from "@vllnt/convex-consent/test";
-import schema from "./schema";
+// vitest.config.mts
+import { defineConfig } from "vitest/config";
 
-const t = convexTest(schema, import.meta.glob("./**/*.ts"));
-register(t);
+export default defineConfig({
+  test: {
+    environment: "edge-runtime",
+    server: { deps: { inline: ["convex-test"] } },
+  },
+});
 ```
 
-## Documentation
+```ts
+// convex/consent.test.ts
+/// <reference types="vite/client" />
+import { register } from "@vllnt/convex-consent/test";
+import { convexTest } from "convex-test";
+import { expect, test } from "vitest";
 
-`llms.txt` is the maintained discovery index. `pnpm generate:llms` checks its
-heading and local links without generating a source bundle.
+import { api } from "./_generated/api.js";
+import schema from "./schema.js";
 
-[API reference](docs/API.md) · [LLM index](llms.txt) ·
-[Security policy](https://github.com/vllnt/convex-consent/blob/main/SECURITY.md)
+test("a granted choice opens the gate", async () => {
+  const t = convexTest(schema, import.meta.glob("./**/*.ts"));
+  register(t);
+  const user = t.withIdentity({ tokenIdentifier: "user-1" });
+  expect(await user.query(api.consent.mayTrack, {})).toBe(false);
+  await user.mutation(api.consent.setAnalyticsConsent, { granted: true });
+  expect(await user.query(api.consent.mayTrack, {})).toBe(true);
+  expect(await user.mutation(api.revoke.revoke, { purpose: "analytics" })).toBe(
+    true,
+  );
+  expect(await user.mutation(api.revoke.revoke, { purpose: "analytics" })).toBe(
+    false,
+  );
+});
+```
+
+`register(t, name)` takes the mount name when you used
+`app.use(consent, { name })`.
+
+This repository's own tests use the simulated `convex-test` runtime
+(`pnpm test:coverage`, 100% coverage enforced); `pnpm build` also installs the
+packed package, type-checks every README example against it and runs the
+README test example.
+
+## Security
+
+- The component does not authenticate. The host must authorize every call and
+  derive `subjectRef` itself; never trust a `subjectRef` sent by the client.
+- Its tables are reachable only through the component's functions, which the
+  host calls from its own server code.
+- Ledger events are never edited; a withdrawal is a new event. Only `prune`
+  deletes them.
+- This package stores consent records; it does not by itself make an app
+  compliant with the GDPR.
+
+Report vulnerabilities as described in
+[SECURITY.md](https://github.com/vllnt/convex-consent/blob/main/SECURITY.md).
 
 ## Related packages
 
-- [`@vllnt/convex-suppression`](https://oss.vllnt.com/packages/convex-suppression)
-  — a do-not-contact suppression list, hash-keyed and channel-aware. Use it to
-  stop contacting an address on a channel; use `@vllnt/convex-consent` for
-  per-purpose, versioned consent decisions with an append-only history.
-- [`@vllnt/convex-email`](https://oss.vllnt.com/packages/convex-email) — a
-  durable outbound transactional email queue. It sends; it does not store
-  consent. Call `check` in your own code before enqueueing a message that needs
-  consent.
-- [`@vllnt/analytics`](https://oss.vllnt.com/packages/analytics) — privacy-first
-  analytics with consent management and React integration. Use it to track usage
-  in a React app; use `@vllnt/convex-consent` when you need a durable,
-  auditable, server-side record of decisions for any purpose.
+None. This package has no runtime dependency, shared test or example with
+another package.
 
 ## Contributing
 
 See
 [CONTRIBUTING.md](https://github.com/vllnt/convex-consent/blob/main/CONTRIBUTING.md).
 
-## Author
+## Links
 
-Built by [bntvllnt](https://github.com/bntvllnt) ·
-[bntvllnt.com](https://bntvllnt.com) · [X @bntvllnt](https://x.com/bntvllnt)
-
-If this is useful, [sponsor the work](https://github.com/sponsors/bntvllnt).
+- Docs and changelog: [oss.vllnt.com/packages/convex-consent](https://oss.vllnt.com/packages/convex-consent) · [release feed](https://oss.vllnt.com/packages/convex-consent/rss.xml)
+- All @vllnt packages: [oss.vllnt.com](https://oss.vllnt.com) · [search packages and docs on index.vllnt.com](https://index.vllnt.com)
+- Source and issues: [GitHub](https://github.com/vllnt/convex-consent) · [issues](https://github.com/vllnt/convex-consent/issues) · [npm](https://www.npmjs.com/package/@vllnt/convex-consent)
+- Questions and updates: [Discord](https://bntvllnt.com/discord) · [X @bntvllnt](https://x.com/bntvllnt)
+- Company and author: [vllnt.com](https://vllnt.com) · [bntvllnt.com](https://bntvllnt.com) · [GitHub @bntvllnt](https://github.com/bntvllnt) · [LinkedIn](https://linkedin.com/in/bntvllnt)
+- Sponsor: [GitHub Sponsors](https://github.com/sponsors/bntvllnt)
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).
 
 ---
 
-Part of vllnt oss: https://oss.vllnt.com
+Part of [vllnt open source](https://oss.vllnt.com) · [Package page](https://oss.vllnt.com/packages/convex-consent) · [vllnt.com](https://vllnt.com) · Built by [bntvllnt](https://bntvllnt.com)

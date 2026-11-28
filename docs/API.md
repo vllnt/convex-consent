@@ -1,154 +1,309 @@
 # API Reference — @vllnt/convex-consent
 
-**Compatibility:** `convex@^1.45.0`
-
-Construct the client with the mounted component and optional host config:
-
-```ts
-import { Consent } from "@vllnt/convex-consent";
-
-const consent = new Consent<{ policyHash: string }>(components.consent, {
-  defaultVersion: "2024-policy",
-  proofValidator: (value) => {
-    if (
-      typeof value !== "object" ||
-      value === null ||
-      !("policyHash" in value) ||
-      typeof value.policyHash !== "string"
-    ) {
-      throw new Error("Expected a policyHash string");
-    }
-    return { policyHash: value.policyHash };
-  },
-});
-```
-
-`Consent<TProof = unknown>` is generic over the host's opaque consent `proof`
-type. Options: `defaultVersion?: string` (default `"1"`) and
-`proofValidator?: (value: unknown) => TProof`.
-
-All methods take the host `ctx` as the first argument. `record`, `withdraw` and
-`prune` call `ctx.runMutation` (a mutation or action context); `check`,
-`getState`, `getStatesForSubject` and `history` call `ctx.runQuery` (a query,
-mutation or action context).
-
-**Time is server-sourced.** Every handler stamps the event `at` from
-`Date.now()` itself; no method accepts a caller-supplied clock.
-
-**Validation.** When `proofValidator` is set it runs at the client boundary:
-over the value written by `record` / `withdraw` (before storage) and over the
-value returned by `history` (on read). It must return the typed value or throw.
-Omit it to leave the opaque proof unvalidated.
+**Compatibility:** `convex@^1.45.0`; Node.js 20 or later (22 or later with
+convex 1.49 and newer, which require it).
 
 ## Entry points
 
-| Import                                       | Provides                                                                                                                                                                |
-| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@vllnt/convex-consent`                      | The `Consent` class and the types `ConsentComponent`, `ConsentCheck`, `ConsentDecision`, `ConsentEvent`, `ConsentOptions`, `ConsentState`, `Parser`, `RecordOptions`.   |
-| `@vllnt/convex-consent/convex.config`        | The component definition for `app.use(...)`.                                                                                                                            |
-| `@vllnt/convex-consent/test`                 | `register(t, name = "consent")` mounts the component into any host `convexTest(schema, modules)`. Needs `convex-test` and Vite's `import.meta.glob` (run under Vitest). |
-| `@vllnt/convex-consent/_generated/component` | The `ComponentApi` type only.                                                                                                                                           |
+| Import                                                  | Exports                                                                                                                                                   |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@vllnt/convex-consent`                                 | `Consent` class; types `ConsentComponent`, `ConsentOptions`, `RecordOptions`, `ConsentDecision`, `ConsentCheck`, `ConsentState`, `ConsentEvent`, `Parser` |
+| `@vllnt/convex-consent/convex.config` (or `.js`)        | default component config for `app.use(...)`                                                                                                               |
+| `@vllnt/convex-consent/test`                            | `register(t, name = "consent")` for `convex-test` (TypeScript source; needs Vite `import.meta.glob`)                                                      |
+| `@vllnt/convex-consent/_generated/component` (or `.js`) | type `ComponentApi`                                                                                                                                       |
 
 There is no `./react` entry; the package is backend-only.
 
-## Mutations
+`subjectRef` and `purpose` are opaque host strings: the component never parses
+them. `version` is an opaque policy version string. Every `at` is a server
+timestamp in milliseconds since the epoch, taken from `Date.now()` inside the
+component; no method lets the caller set an event's `at`.
 
-### `record(ctx, subjectRef, purpose, decision, opts?) → { at }`
+## Data model
 
-`decision` is `"granted" | "denied" | "withdrawn"`. `opts`:
-`{ version?: string; proof?: TProof }` (`version` defaults to the client's
-`defaultVersion`, itself `"1"` by default).
+The component keeps two tables, reachable only through its functions:
 
-Record a consent decision for a `(subjectRef, purpose)` pair. Appends one
-immutable row to the `consentEvents` ledger — the GDPR proof — and overwrites
-the `consentState` projection so the next `check` / `getState` reads the new
-decision. `at` is stamped from the server clock. `proof` is validated against
-`proofValidator` before storage. Returns the event timestamp.
+| Table           | One row per                       | Indexes                          | Changed by                                              |
+| --------------- | --------------------------------- | -------------------------------- | ------------------------------------------------------- |
+| `consentEvents` | decision (the append-only ledger) | `by_subject_purpose_at`, `by_at` | inserted by `record` and `withdraw`; deleted by `prune` |
+| `consentState`  | `(subjectRef, purpose)` pair      | `by_subject_purpose`             | written by `record`, patched by `withdraw`              |
 
-### `withdraw(ctx, subjectRef, purpose, proof?) → { at }`
+A ledger row is never edited. `consentState` holds the latest decision for each
+pair and is never deleted, not even by `prune`.
 
-Withdraw a previously-granted consent (GDPR Art. 7(3)). Appends a `withdrawn`
-event (carrying the prior version) and projects it — but only when the subject
-currently holds a `granted` decision.
+## Client
 
-A pair with no recorded consent throws `ConvexError({ code: "NO_CONSENT" })`; a
-pair whose current decision is not `granted` (already `denied`/`withdrawn`)
-throws `ConvexError({ code: "NOT_GRANTED" })`. Withdrawal is never a silent
-no-op, so the audit trail stays meaningful.
+### `Consent`
 
-### `prune(ctx, opts?) → number`
+```ts
+new Consent<TProof = unknown>(component: ConsentComponent, options?: ConsentOptions<TProof>)
+```
 
-`opts`: `{ before?: number; batch?: number }` (defaults:
-`before = Date.now() - 365 days`, `batch = 200`; valid batch range: 1–500).
+`component` is the mounted component, `components.consent` (or the name passed
+to `app.use`). `options.defaultVersion` defaults to `"1"`.
+`options.proofValidator` narrows stored proof to `TProof`; see
+[`ConsentOptions`](#consentoptions).
 
-Delete up to `batch` **ledger events** whose `at < before`, oldest first via the
-`by_at` index, and return the count removed in the first pass. Only the
-historical `consentEvents` ledger is swept — the `consentState` projection (the
-live gate) is never pruned, so the current decision survives even after old
-proof ages out. There is no check that an event is superseded: the current
-decision's evidence can also be deleted. Export evidence if it must survive
-beyond the default window. If a full batch was removed the sweep
-self-reschedules through the component scheduler until the tail is clean.
-Idempotent — safe to run anytime. A built-in daily cron drives it automatically;
-call `prune` directly only for an extra or custom-cadence sweep.
+Mutating methods (`record`, `withdraw`, `prune`) need a `ctx` with
+`runMutation`: a mutation or action context. Reading methods (`check`,
+`getState`, `getStatesForSubject`, `history`) need `runQuery`: a query, mutation
+or action context.
 
-## Queries
+### `record`
 
-### `check(ctx, subjectRef, purpose, requiredVersion?) → ConsentCheck`
+```ts
+record(ctx, subjectRef: string, purpose: string, decision: ConsentDecision, opts?: RecordOptions<TProof>): Promise<{ at: number }>
+```
 
-The runtime gate. Reads the O(1) current-state projection and returns
-`{ granted, stale, decision, version, at }`:
+Appends one event to the ledger and sets the pair's current state to this
+decision. `opts.version` defaults to the client's `defaultVersion`. When
+`opts.proof` is set and the client has a `proofValidator`, the validator runs
+before the call and its result is stored. `decision` may be `"withdrawn"`:
+unlike `withdraw`, `record` does not check the current decision.
 
-- `granted` is `true` only when the latest decision is `granted` AND — if
-  `requiredVersion` is supplied — the consented `version` matches it.
-- `stale` is `true` when a `granted` decision has a `version` unequal to
-  `requiredVersion` (no chronological or semantic version comparison) (the host
-  re-prompts); `granted` is then `false`.
-- With no recorded consent, `granted`/`stale` are `false` and
-  `decision`/`version`/`at` are `null`.
+Throws `INVALID_ARGUMENT` when `subjectRef`, `purpose` or the resolved `version`
+is an empty string. Returns the event's `at`.
 
-### `getState(ctx, subjectRef, purpose) → ConsentState | null`
+### `withdraw`
 
-The raw current decision for one pair, or `null` if none was ever recorded.
-`ConsentState` is `{ subjectRef, purpose, decision, version, at }`.
+```ts
+withdraw(ctx, subjectRef: string, purpose: string, proof?: TProof): Promise<{ at: number }>
+```
 
-### `getStatesForSubject(ctx, subjectRef) → ConsentState[]`
+Withdraws a current grant (GDPR Art. 7(3)). Appends a `withdrawn` event that
+keeps the version of the current grant, and sets the current state to
+`withdrawn` with the new `at` (the version is unchanged). `proof` goes through
+`proofValidator` like in `record`.
 
-Every current decision held by one subject, across all purposes, ordered by
-`purpose` (a `subjectRef` prefix range of the `by_subject_purpose` index).
+Throws `INVALID_ARGUMENT` for an empty `subjectRef` or `purpose`, `NO_CONSENT`
+when the pair has no recorded decision, and `NOT_GRANTED` when the current
+decision is `denied` or `withdrawn`. Nothing is written when it throws.
 
-### `history(ctx, subjectRef, purpose, paginationOpts) → PaginationResult<ConsentEvent>`
+### `check`
 
-Page the immutable consent ledger for one pair, **newest-first** via the
-`by_subject_purpose_at` index. Takes the standard Convex `paginationOpts` and
-returns the standard paginated envelope (`page`, `isDone`, `continueCursor`).
-`ConsentEvent` is `{ subjectRef, purpose, decision, version, proof?, at }`;
-`proof` is narrowed by the host validator when set. This is the retained proof
-trail for an audit or a data subject request, excluding events already pruned.
+```ts
+check(ctx, subjectRef: string, purpose: string, requiredVersion?: string): Promise<ConsentCheck>
+```
+
+The gate to call before processing personal data. Reads the pair's current state
+with one index lookup:
+
+- No recorded decision:
+  `{ granted: false, stale: false, decision: null, version: null, at: null }`.
+- Current decision `granted` and (`requiredVersion` omitted or equal to the
+  stored `version`): `granted: true, stale: false`.
+- Current decision `granted` and `requiredVersion !== version`:
+  `granted: false, stale: true`. The comparison is string equality, not version
+  order, so a newer stored version is also `stale`.
+- Current decision `denied` or `withdrawn`: `granted: false, stale: false`.
+
+`decision`, `version` and `at` mirror the current state.
+
+### `getState`
+
+```ts
+getState(ctx, subjectRef: string, purpose: string): Promise<ConsentState | null>
+```
+
+The pair's current state, or `null` if no decision was ever recorded.
+
+### `getStatesForSubject`
+
+```ts
+getStatesForSubject(ctx, subjectRef: string): Promise<ConsentState[]>
+```
+
+The current state of every purpose recorded for `subjectRef`, ordered by
+`purpose`. It reads them all in one query, without pagination.
+
+### `history`
+
+```ts
+history(ctx, subjectRef: string, purpose: string, paginationOpts: PaginationOptions): Promise<PaginationResult<ConsentEvent<TProof>>>
+```
+
+One page of the pair's ledger events, newest first. `paginationOpts` is the
+standard Convex `PaginationOptions`: start with `{ cursor: null, numItems: 50 }`
+and pass the returned `continueCursor` until `isDone`. Events already deleted by
+`prune` are gone. When the client has a `proofValidator`, it runs on the `proof`
+of every returned event that has one; if it throws, `history` throws.
+
+### `prune`
+
+```ts
+prune(ctx, opts?: { before?: number; batch?: number }): Promise<number>
+```
+
+Deletes up to `batch` ledger events with `at < before`, oldest first. `before`
+defaults to now minus 365 days (`31_536_000_000` ms); `batch` defaults to 200
+and must be an integer from 1 to 500. When a full batch was deleted, the
+component schedules the next batch itself with the same `before` and `batch`,
+until a batch comes back short. Returns the count deleted by the first batch
+only.
+
+Events are deleted by age only, including the proof of a pair's current
+decision. `consentState` is never pruned, so `check` and `getState` still
+answer. Throws `INVALID_BATCH` for a `batch` outside 1..500 or not an integer,
+and `INVALID_BEFORE` for a `before` that is not finite.
+
+The component also runs `prune` itself; see [Built-in cron](#built-in-cron).
+
+## Types
+
+### `ConsentComponent`
+
+The type of `components.consent`: the component's `mutations.record`,
+`mutations.withdraw`, `mutations.prune`, `queries.check`, `queries.getState`,
+`queries.getStatesForSubject` and `queries.history` function references, with
+`proof` typed `unknown`. Pass `components.consent` (or your mount name) to
+`new Consent(...)`.
+
+### `ConsentOptions`
+
+```ts
+interface ConsentOptions<TProof> {
+  defaultVersion?: string;
+  proofValidator?: Parser<TProof>;
+}
+```
+
+- `defaultVersion`: the version `record` stores when `opts.version` is omitted.
+  Default `"1"`. `check` does not use it; pass `requiredVersion` yourself.
+- `proofValidator`: runs on the `proof` passed to `record` and `withdraw`
+  (before storage) and on every `proof` returned by `history`. It must return a
+  `TProof` or throw. Without it, proof is stored as given and cast to `TProof`
+  on read. `convex/values` validators have no `.parse`; use a hand-written
+  parser or a library parser such as Zod's `.parse`.
+
+### `RecordOptions`
+
+```ts
+interface RecordOptions<TProof> {
+  version?: string;
+  proof?: TProof;
+}
+```
+
+Options of `record`: the policy version of this decision (default: the client's
+`defaultVersion`) and the proof to store with it.
+
+### `ConsentDecision`
+
+```ts
+type ConsentDecision = "granted" | "denied" | "withdrawn";
+```
+
+### `ConsentCheck`
+
+```ts
+interface ConsentCheck {
+  granted: boolean;
+  stale: boolean;
+  decision: ConsentDecision | null;
+  version: string | null;
+  at: number | null;
+}
+```
+
+Result of `check`; see [`check`](#check) for when each flag is set.
+
+### `ConsentState`
+
+```ts
+interface ConsentState {
+  subjectRef: string;
+  purpose: string;
+  decision: ConsentDecision;
+  version: string;
+  at: number;
+}
+```
+
+The latest decision for one `(subjectRef, purpose)` pair.
+
+### `ConsentEvent`
+
+```ts
+interface ConsentEvent<TProof = unknown> {
+  subjectRef: string;
+  purpose: string;
+  decision: ConsentDecision;
+  version: string;
+  proof?: TProof;
+  at: number;
+}
+```
+
+One ledger event, as returned by `history`.
+
+### `Parser`
+
+```ts
+type Parser<T> = (value: unknown) => T;
+```
+
+The shape of `proofValidator`: return the typed value or throw.
+
+## Component config
+
+### `convex.config`
+
+```ts
+import consent from "@vllnt/convex-consent/convex.config";
+```
+
+The component definition, named `consent`. Pass it to `app.use(consent)`, or
+`app.use(consent, { name })` for another mount; each mount has its own tables
+and its own cron.
+
+## Testing
+
+### `register`
+
+```ts
+register<TSchema extends GenericSchema>(t: TestConvex<SchemaDefinition<TSchema, boolean>>, name = "consent"): void
+```
+
+Mounts the component in a `convex-test` instance built from your own schema.
+`name` defaults to `"consent"`; pass the mount name used in `app.use`. The entry
+is TypeScript source that uses Vite's `import.meta.glob`, so run it under Vitest
+(with `convex-test`, `vite` and `@edge-runtime/vm` installed).
+
+## Generated types
+
+### `ComponentApi`
+
+```ts
+import type { ComponentApi } from "@vllnt/convex-consent/_generated/component";
+```
+
+The generated type of the mounted component's functions, from Convex codegen.
+Most hosts use `ConsentComponent` through `Consent` instead.
 
 ## Error codes
 
-Coded `ConvexError`s thrown by the component (`error.data.code`):
+The component throws `ConvexError` with `data: { code, message }`:
 
-| Code               | Thrown by            | Meaning                                                                                     |
-| ------------------ | -------------------- | ------------------------------------------------------------------------------------------- |
-| `INVALID_ARGUMENT` | `record`, `withdraw` | `subjectRef`, `purpose` or (for `record`) `version` is empty.                               |
-| `INVALID_BATCH`    | `prune`              | Batch must be a finite integer from 1–500.                                                  |
-| `INVALID_BEFORE`   | `prune`              | The cutoff must be finite.                                                                  |
-| `NO_CONSENT`       | `withdraw`           | No consent was ever recorded for this `(subjectRef, purpose)`.                              |
-| `NOT_GRANTED`      | `withdraw`           | The current decision is not `granted` (already `denied`/`withdrawn`) — nothing to withdraw. |
+| Code               | Thrown by            | Message                                                                                         | Meaning                                                                 |
+| ------------------ | -------------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `INVALID_ARGUMENT` | `record`, `withdraw` | `<field> must be non-empty`                                                                     | `subjectRef`, `purpose` or (for `record`) `version` is an empty string. |
+| `NO_CONSENT`       | `withdraw`           | `no consent recorded for "<subjectRef>" / "<purpose>"`                                          | The pair has no recorded decision.                                      |
+| `NOT_GRANTED`      | `withdraw`           | `consent for "<subjectRef>" / "<purpose>" is "<decision>", not "granted" — nothing to withdraw` | The current decision is `denied` or `withdrawn`.                        |
+| `INVALID_BATCH`    | `prune`              | `batch must be an integer between 1 and 500`                                                    | `batch` is below 1, above 500, fractional or not finite.                |
+| `INVALID_BEFORE`   | `prune`              | `before must be finite`                                                                         | `before` is `NaN` or infinite.                                          |
 
-## Cron / Maintenance
+Wrong argument types are rejected by Convex argument validation before the
+component runs. Errors thrown by a `proofValidator` are the host's own errors.
 
-The component registers one cron (`crons.ts`):
+## Built-in cron
 
-| Job             | Cadence                      | Action                                                                                               |
-| --------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `consent:prune` | every 24h (`PRUNE_INTERVAL`) | runs `prune` with `batch = PRUNE_BATCH` (200), self-rescheduling until the stale-event tail is clean |
+Every mount registers one cron job:
 
-Cadence is a static module constant (Convex cron definitions are static per
-deployment). A host can run extra sweeps from its own scheduler with an explicit
-`before` cutoff. This does not disable or reconfigure the built-in 365-day
-sweep, so a longer cutoff in a custom call cannot extend retention. The cron is
-per-mount, so each `app.use(component, { name })` instance prunes its own
-sandbox independently. The current-state projection is never pruned.
+| Job             | Cadence        | Action                                                                  |
+| --------------- | -------------- | ----------------------------------------------------------------------- |
+| `consent:prune` | every 24 hours | `prune` with `batch: 200` and the default `before` (now minus 365 days) |
+
+The cadence is fixed in the component and cannot be turned off or changed. A
+host can run extra sweeps with its own `before` cutoff to delete events sooner;
+a later cutoff cannot keep events longer, because the built-in cron still
+deletes them after 365 days.

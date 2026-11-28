@@ -90,13 +90,14 @@ consent).
   `record(..., "withdrawn")` directly.
 
 - **Versioned consent (the part that's easy to get wrong):** every decision carries a policy `version`;
-  `check(requiredVersion)` returns `stale: true` (and `granted: false`) when a grant is for an older
-  version, so a policy change re-prompts instead of silently honoring outdated consent. `defaultVersion`
-  lets a host bump its policy version in one place.
+  `check(requiredVersion)` returns `stale: true` (and `granted: false`) when a grant's `version` is not
+  equal to `requiredVersion` — a string comparison, not version ordering, so a newer stored version is
+  stale too — and a policy change re-prompts instead of silently honoring outdated consent.
+  `defaultVersion` lets a host bump its policy version in one place.
 
 - **Typed-generic opaque proof, never `v.any()` dumped raw:** `proof` rides through the single documented
   `jsonValue` alias and is narrowed to `TProof` by the host parser at the client boundary on both write
-  and read — no unchecked cast. `subjectRef`/`purpose` are opaque host strings the component never
+  and read when the host passes `proofValidator`; without one, the stored value is only typed as `TProof`. `subjectRef`/`purpose` are opaque host strings the component never
   inspects.
 
 - **Prune is ledger-only + bounded + self-rescheduling:** `prune` removes up to `batch` ledger events
@@ -124,14 +125,15 @@ consent).
 
 | Changed | Update in the same commit |
 |---------|--------------------------|
-| Public API (record/withdraw/check/getState/getStatesForSubject/history/prune signatures) | README API Reference table, `docs/API.md`, `llms.txt` context |
-| Config options / defaults (validators, defaultVersion, retention, batch) | README API Reference, `docs/API.md` constructor section |
-| Schema / tables / indexes | README Architecture, `docs/API.md` |
-| Error codes | `docs/API.md` → `## Error codes` table |
-| `peerDependencies.convex` version | `llms.txt` context line (`convex@^X.Y.Z`), `docs/API.md` Compatibility line, README Installation peer note |
+| Public API (record/withdraw/check/getState/getStatesForSubject/history/prune signatures) | README `## API` table, `docs/API.md` (one heading per export), `llms.txt` summary |
+| Config options / defaults (validators, defaultVersion, retention, batch) | README `## Limits and gotchas`, `docs/API.md` `Consent` / `ConsentOptions` / `prune` sections |
+| Schema / tables / indexes | `docs/API.md` `## Data model`, Architecture above |
+| Error codes | README `## Errors and fixes` table, `docs/API.md` → `## Error codes` table, `llms.txt` summary |
+| `peerDependencies.convex` version | `llms.txt` context line (`convex@^X.Y.Z`), `docs/API.md` Compatibility line, README `## Compatibility` |
 | Decisions / version-staleness / append-only semantics | `docs/API.md` mutation+query sections, Key design decisions above |
 | Shipped docs set (`package.json` `files`: `docs/API.md`, `CHANGELOG.md`, `llms.txt`) | The `required` list in `scripts/test-package.mjs` (run by `pnpm build`, and so by CI), the `paths` filter in `publish.yml` |
 | Any change | `pnpm generate:llms` to validate the `llms.txt` index (no bundle is generated) |
+| README, `llms.txt`, `docs/`, public exports or thrown error codes | `pnpm check:docs` (run by `pnpm lint`): the docs contract in `scripts/check-documentation.mjs` — README sections and order, install and first example in the first 40 lines, tagged code blocks, resolving relative links and anchors, every export (with TSDoc) and error code documented, shared Links block, footer and `llms.txt` Ecosystem block, no retired vllnt domain. `pnpm build` runs it again on the installed tarball, type-checks every README `ts` example against the built package and runs the README test example |
 
 Grep old values before committing (e.g. after a `peerDependencies.convex` bump, `git grep "1.41.0"` → only the new range survives).
 

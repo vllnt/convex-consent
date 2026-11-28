@@ -1,7 +1,7 @@
 {
   "name": "@vllnt/convex-consent",
   "version": "0.1.1",
-  "description": "Append-only consent ledger (GDPR Art. 6/7) — record, withdraw, and gate consent per subject + purpose as a Convex component",
+  "description": "TypeScript Convex component for GDPR consent: append-only ledger of granted, denied and withdrawn decisions per subject and purpose, with a version check.",
   "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@10.34.8",
@@ -45,13 +45,14 @@
     "typecheck": "tsc --noEmit --incremental --tsBuildInfoFile node_modules/.cache/tsc/typecheck.tsbuildinfo",
     "typecheck:ci": "tsc --noEmit --incremental --tsBuildInfoFile node_modules/.cache/tsc/typecheck-ci.tsbuildinfo --project tsconfig.ci.json && pnpm typecheck:tests",
     "typecheck:tests": "tsc --noEmit --incremental --tsBuildInfoFile node_modules/.cache/tsc/typecheck-tests.tsbuildinfo --project tsconfig.test.json",
-    "lint": "pnpm check:agents && eslint --cache --cache-location node_modules/.cache/eslint/ .",
+    "lint": "pnpm check:agents && pnpm check:docs && eslint --cache --cache-location node_modules/.cache/eslint/ .",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest --typecheck --clearScreen false",
     "test:coverage": "vitest run --coverage --coverage.reporter=text",
     "generate:llms": "node scripts/generate-llms.mjs",
     "test:package": "node scripts/test-package.mjs && bash scripts/test-check-package-contents.sh",
     "preversion": "pnpm install --frozen-lockfile && pnpm build && pnpm test:coverage && pnpm typecheck && pnpm generate:llms",
+    "check:docs": "node scripts/check-documentation.mjs",
     "check:agents": "node -e \"const f=require('node:fs');if(!f.existsSync('AGENTS.md')||f.existsSync('CLAUDE.md')||f.existsSync('.claude'))process.exit(1)\"",
     "codegen": "pnpm convex codegen --component-dir ./src/component"
   },
@@ -98,9 +99,14 @@
   "keywords": [
     "convex",
     "convex-component",
+    "typescript",
     "consent",
     "gdpr",
-    "privacy"
+    "consent-management",
+    "privacy",
+    "audit-trail",
+    "opt-in",
+    "ledger"
   ],
   "pnpm": {
     "minimumReleaseAge": 10080,
