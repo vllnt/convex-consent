@@ -160,9 +160,12 @@ try {
     }),
   );
   // pnpm 11 reads the build-script policy from the workspace file, pnpm 10 from package.json.
+  // No lockfile here: the repo's own release-age gate (minimumReleaseAge and its exclusions),
+  // copied from its pnpm-workspace.yaml so the two never drift, keeps floating transitive deps
+  // off fresh releases. pnpm 10 and 11 read it from the workspace file, not from package.json.
   writeFileSync(
     join(temporary, "pnpm-workspace.yaml"),
-    "allowBuilds:\n  esbuild: false\n",
+    `${readFileSync(join(root, "pnpm-workspace.yaml"), "utf8")}allowBuilds:\n  esbuild: false\n`,
   );
   // The lowest supported convex, so the docs hold for the whole peer range.
   run("pnpm", [
