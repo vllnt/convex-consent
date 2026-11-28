@@ -16,7 +16,8 @@ import {
  * contributor or internal doc), and every `llms.txt` link to a shipped file is
  * relative and resolves inside the tarball. Then installs the real tarball in a
  * temporary consumer, runs the docs contract on it, type-checks the README
- * examples against the built package and runs the README test example. Run
+ * examples and a consumer of every `exports` entry point against the built
+ * package, runs the README test example and imports the runtime entries. Run
  * after `pnpm build` so `dist` exists. The rules for test, spec and `.env`
  * files live in `check-package-contents.sh`.
  */
@@ -99,8 +100,31 @@ console.log(
   `OK    package tarball: ${packed.size} files, ${required.length} required present, ${links.length} llms.txt links checked`,
 );
 
-/** @type {{ name: string, version: string }} */
+/** @type {{ name: string, version: string, exports: Record<string, unknown> }} */
 const metadata = JSON.parse(readFileSync("package.json", "utf8"));
+
+// A strict consumer of every code entry point; `./package.json` is checked at runtime below.
+const entryPoints = `import { Consent } from "${metadata.name}";
+import config from "${metadata.name}/convex.config";
+import configJs from "${metadata.name}/convex.config.js";
+import type { ComponentApi } from "${metadata.name}/_generated/component";
+import type { ComponentApi as ComponentApiJs } from "${metadata.name}/_generated/component.js";
+import { register } from "${metadata.name}/test";
+declare const component: ComponentApi;
+const componentJs: ComponentApiJs = component;
+export const used = [new Consent(componentJs), config, configJs, register] as const;
+`;
+const uncovered = Object.keys(metadata.exports).filter(
+  (key) =>
+    key !== "./package.json" &&
+    !entryPoints.includes(`"${metadata.name}${key.slice(1)}"`),
+);
+if (uncovered.length > 0) {
+  console.error(
+    `FAIL  exports not imported by the entry-point consumer: ${uncovered.join(", ")}`,
+  );
+  process.exit(1);
+}
 const root = process.cwd();
 const tarball = `${metadata.name.replace("@", "").replace("/", "-")}-${metadata.version}.tgz`;
 const temporary = mkdtempSync(join(tmpdir(), "consent-consumer-"));
@@ -160,17 +184,29 @@ try {
     convexHost(installed, examples),
     examples,
   );
-  typecheck("ESNext", hostFiles);
-  typecheck("NodeNext", hostFiles);
+  writeFileSync(join(temporary, "entry-points.ts"), entryPoints);
+  typecheck("ESNext", [...hostFiles, "entry-points.ts"]);
+  typecheck("NodeNext", [...hostFiles, "entry-points.ts"]);
   // The README's own vitest.config.mts runs its test example.
   run("pnpm", ["exec", "vitest", "run"]);
   run("node", [
     "--input-type=module",
     "-e",
-    'import { Consent } from "@vllnt/convex-consent"; import config from "@vllnt/convex-consent/convex.config.js"; if (!Consent || !config) throw Error("missing export");',
+    [
+      `import { Consent } from "${metadata.name}";`,
+      `import config from "${metadata.name}/convex.config";`,
+      `import configJs from "${metadata.name}/convex.config.js";`,
+      `import manifest from "${metadata.name}/package.json" with { type: "json" };`,
+      `if (!Consent || !config) throw Error("missing export");`,
+      `if (config !== configJs) throw Error("convex.config and convex.config.js differ");`,
+      `if (manifest.name !== "${metadata.name}") throw Error("wrong package.json");`,
+    ].join(" "),
   ]);
   console.log(
     `OK    docs contract on the installed tarball: ${examples.length} examples type-checked (Bundler, NodeNext) and run`,
+  );
+  console.log(
+    `OK    entry points: ${Object.keys(metadata.exports).length} exports, code entries type-checked (Bundler, NodeNext), runtime entries and package.json imported`,
   );
 } finally {
   rmSync(temporary, { force: true, recursive: true });
