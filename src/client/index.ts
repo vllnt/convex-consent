@@ -112,7 +112,7 @@ interface RunMutationCtx {
  * `check` to gate: "may I process `<purpose>` for `<subject>`?". `subjectRef` and
  * `purpose` are opaque host strings; the host owns meaning and auth. Pass
  * `proofValidator` to narrow the opaque stored `proof` to `TProof` at the
- * boundary — there is no unchecked cast.
+ * boundary; without it, `proof` is returned as stored and only typed as `TProof`.
  *
  * @typeParam TProof - The host's consent-proof type (defaults to `unknown`).
  *

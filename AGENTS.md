@@ -97,7 +97,7 @@ consent).
 
 - **Typed-generic opaque proof, never `v.any()` dumped raw:** `proof` rides through the single documented
   `jsonValue` alias and is narrowed to `TProof` by the host parser at the client boundary on both write
-  and read — no unchecked cast. `subjectRef`/`purpose` are opaque host strings the component never
+  and read when the host passes `proofValidator`; without one, the stored value is only typed as `TProof`. `subjectRef`/`purpose` are opaque host strings the component never
   inspects.
 
 - **Prune is ledger-only + bounded + self-rescheduling:** `prune` removes up to `batch` ledger events
@@ -133,7 +133,7 @@ consent).
 | Decisions / version-staleness / append-only semantics | `docs/API.md` mutation+query sections, Key design decisions above |
 | Shipped docs set (`package.json` `files`: `docs/API.md`, `CHANGELOG.md`, `llms.txt`) | The `required` list in `scripts/test-package.mjs` (run by `pnpm build`, and so by CI), the `paths` filter in `publish.yml` |
 | Any change | `pnpm generate:llms` to validate the `llms.txt` index (no bundle is generated) |
-| README, `llms.txt`, `docs/`, public exports or thrown error codes | `pnpm check:docs` (run by `pnpm lint`): the docs contract in `scripts/check-documentation.mjs` — README sections and order, install and first example in the first 40 lines, tagged code blocks, resolving relative links and anchors, every export (with TSDoc) and error code documented, shared Links block, footer and `llms.txt` Ecosystem block, no retired vllnt domain. `pnpm build` runs it again on the installed tarball and type-checks and runs every README `ts` example against the built package |
+| README, `llms.txt`, `docs/`, public exports or thrown error codes | `pnpm check:docs` (run by `pnpm lint`): the docs contract in `scripts/check-documentation.mjs` — README sections and order, install and first example in the first 40 lines, tagged code blocks, resolving relative links and anchors, every export (with TSDoc) and error code documented, shared Links block, footer and `llms.txt` Ecosystem block, no retired vllnt domain. `pnpm build` runs it again on the installed tarball, type-checks every README `ts` example against the built package and runs the README test example |
 
 Grep old values before committing (e.g. after a `peerDependencies.convex` bump, `git grep "1.41.0"` → only the new range survives).
 

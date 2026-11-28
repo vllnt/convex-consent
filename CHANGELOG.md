@@ -11,7 +11,7 @@ All notable changes to this project are documented here. The format is based on
 - Ship `docs/API.md`, `CHANGELOG.md` and `llms.txt` in the npm tarball, so coding agents read
   docs that match the installed version from `node_modules/@vllnt/convex-consent/`. `llms.txt`
   links shipped files by relative path and gains a "For coding agents" note and an ecosystem
-  link; the README gains the same note and a "Related packages" section.
+  link; the README gains the same note.
 - `docs/API.md` documents the package entry points (`./test`, `./convex.config`,
   `./_generated/component`) and the client options.
 - `pnpm test:package`, which `pnpm build` now runs (so CI and the publish workflow run it), fails
@@ -40,7 +40,6 @@ All notable changes to this project are documented here. The format is based on
 - One description, used in `package.json`, the README and `llms.txt`: "TypeScript Convex
   component for GDPR consent: append-only ledger of granted, denied and withdrawn decisions per
   subject and purpose, with a version check." Keywords now cover the problem and the stack.
-
 - Drop the `consentState.by_subject` index: it was a prefix of `by_subject_purpose`, which now serves
   `getStatesForSubject` (results ordered by `purpose`). Saves one index entry per state row.
 - `homepage` points at the package page on oss.vllnt.com.

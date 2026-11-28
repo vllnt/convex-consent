@@ -105,7 +105,7 @@ Full reference: [docs/API.md](docs/API.md).
 | [`getState(ctx, subjectRef, purpose)`](docs/API.md#getstate)               | `Consent` method, query                      | Current decision for one pair, or `null`                               |
 | [`getStatesForSubject(ctx, subjectRef)`](docs/API.md#getstatesforsubject)  | `Consent` method, query                      | Current decision for every purpose of one subject                      |
 | [`history(ctx, subjectRef, purpose, paginationOpts)`](docs/API.md#history) | `Consent` method, query                      | One page of ledger events, newest first                                |
-| [`prune(ctx, opts?)`](docs/API.md#prune)                                   | `Consent` method, mutation                   | Delete ledger events past retention; returns the count deleted         |
+| [`prune(ctx, opts?)`](docs/API.md#prune)                                   | `Consent` method, mutation                   | Delete ledger events past retention; returns the first batch's count   |
 | [`ConsentComponent`](docs/API.md#consentcomponent)                         | `@vllnt/convex-consent` (type)               | Type of `components.consent`                                           |
 | [`ConsentOptions`](docs/API.md#consentoptions)                             | `@vllnt/convex-consent` (type)               | `{ defaultVersion?, proofValidator? }`                                 |
 | [`RecordOptions`](docs/API.md#recordoptions)                               | `@vllnt/convex-consent` (type)               | `{ version?, proof? }`                                                 |
@@ -198,7 +198,9 @@ export const analyticsPrompt = query({
 
 Withdraw consent. `withdraw` throws `NO_CONSENT` or `NOT_GRANTED` when there is
 no current grant; catch them to make a "revoke" button safe to press twice, or
-call `record(ctx, subjectRef, purpose, "withdrawn")`, which never checks:
+call `record(ctx, subjectRef, purpose, "withdrawn")`, which never checks (it
+writes a `withdrawn` event even when nothing was granted, with the client's
+`defaultVersion` unless you pass `version`):
 
 ```ts
 // convex/revoke.ts
@@ -364,13 +366,14 @@ not a `ConvexError` from the component.
 - `prune` takes `batch` 1..500 (default 200), integers only; other values throw
   `INVALID_BATCH`, they are not clamped. It returns only the count deleted by
   the first batch and schedules the next batches itself when a batch is full.
-- `proofValidator` also runs on every event `history` returns, so if you change
+- `proofValidator` also runs on every proof `history` returns, so if you change
   your proof type, old proof that no longer parses makes `history` throw.
 - Without `proofValidator`, `proof` is not checked: it is stored as given (any
   Convex value) and typed as `TProof` on read.
 - `getStatesForSubject` reads all purposes of a subject in one query, with no
   pagination; keep the number of purposes per subject small.
-- Every `at` is the server time in milliseconds. No method accepts a timestamp.
+- Every `at` is the server time in milliseconds. No method lets the caller set
+  an event's `at`.
 - The component does not read auth. Never accept a `subjectRef` from the client
   without checking that the caller may act for it.
 
@@ -434,7 +437,8 @@ test("a granted choice opens the gate", async () => {
 
 This repository's own tests use the simulated `convex-test` runtime
 (`pnpm test:coverage`, 100% coverage enforced); `pnpm build` also installs the
-packed package and runs the README examples against it.
+packed package, type-checks every README example against it and runs the
+README test example.
 
 ## Security
 
@@ -452,8 +456,8 @@ Report vulnerabilities as described in
 
 ## Related packages
 
-None. This package has no dependency, shared test or example with another
-package.
+None. This package has no runtime dependency, shared test or example with
+another package.
 
 ## Contributing
 

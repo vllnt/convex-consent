@@ -238,11 +238,13 @@ function checkCode(texts) {
       assert.ok(block.lang, `${file}:${String(block.line)} has no language`);
     });
   });
-  return ["README.md", "llms.txt"].flatMap((file) =>
+  const typescript = /^(?:typescript|tsx?|mts|cts)$/u;
+  const examples = ["README.md", "llms.txt"].flatMap((file) =>
     codeBlocks(String(texts[file]))
-      .filter((block) => block.lang === "ts")
+      .filter((block) => typescript.test(block.lang ?? ""))
       .map((block) => {
         const where = `${file}:${String(block.line)}`;
+        assert.equal(block.lang, "ts", `${where} must be tagged ts`);
         const gap = /^\s*(?:\/\/\s*)?(?:\.\.\.|…)\s*$/mu;
         assert.doesNotMatch(block.code, gap, `${where} has a ... gap`);
         const path = /^\/\/ (\S+\.m?ts)\n/u.exec(block.code)?.[1];
@@ -250,6 +252,8 @@ function checkCode(texts) {
         return { code: block.code, path };
       }),
   );
+  assert.ok(examples.length > 0, "README.md has no ts examples to type-check");
+  return examples;
 }
 
 /** Relative links and their anchors resolve inside the package. @param {string} installed @param {Record<string, string>} texts */

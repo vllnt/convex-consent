@@ -17,7 +17,7 @@ There is no `./react` entry; the package is backend-only.
 `subjectRef` and `purpose` are opaque host strings: the component never parses
 them. `version` is an opaque policy version string. Every `at` is a server
 timestamp in milliseconds since the epoch, taken from `Date.now()` inside the
-component; no method accepts a timestamp from the caller.
+component; no method lets the caller set an event's `at`.
 
 ## Data model
 
@@ -26,7 +26,7 @@ The component keeps two tables, reachable only through its functions:
 | Table           | One row per                       | Indexes                          | Changed by                                              |
 | --------------- | --------------------------------- | -------------------------------- | ------------------------------------------------------- |
 | `consentEvents` | decision (the append-only ledger) | `by_subject_purpose_at`, `by_at` | inserted by `record` and `withdraw`; deleted by `prune` |
-| `consentState`  | `(subjectRef, purpose)` pair      | `by_subject_purpose`             | inserted or overwritten by `record` and `withdraw`      |
+| `consentState`  | `(subjectRef, purpose)` pair      | `by_subject_purpose`             | written by `record`, patched by `withdraw`              |
 
 A ledger row is never edited. `consentState` holds the latest decision for each
 pair and is never deleted, not even by `prune`.
@@ -126,7 +126,7 @@ One page of the pair's ledger events, newest first. `paginationOpts` is the
 standard Convex `PaginationOptions`: start with `{ cursor: null, numItems: 50 }`
 and pass the returned `continueCursor` until `isDone`. Events already deleted by
 `prune` are gone. When the client has a `proofValidator`, it runs on the `proof`
-of every returned event; if it throws, `history` throws.
+of every returned event that has one; if it throws, `history` throws.
 
 ### `prune`
 
