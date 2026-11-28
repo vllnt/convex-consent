@@ -74,8 +74,9 @@ export interface ConsentOptions<TProof> {
   /**
    * The policy version stamped on a decision when `record` is called without an
    * explicit `version`. Lets a host bump its policy version in one place. Defaults
-   * to `"1"`. At most 512 characters (Unicode code points), or `record` throws
-   * `INVALID_ARGUMENT` for every new pair.
+   * to `"1"`. At most 512 characters (Unicode code points), or `record` without an
+   * explicit `version` throws `INVALID_ARGUMENT` for every new pair and every pair
+   * whose current version differs.
    */
   defaultVersion?: string;
   /**

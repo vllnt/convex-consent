@@ -68,8 +68,9 @@ pair whose `subjectRef` or `purpose` is longer than 512 characters, or store a
 version. Characters are counted as Unicode code points, not UTF-16 code units
 (JavaScript `.length`). The empty-value check runs first. A pair stored earlier
 with longer values stays readable and can be re-recorded with its current
-version; `withdraw` is not capped. Nothing is written when it throws. Returns
-the event's `at`.
+version; `withdraw` is not capped. Nothing is written when it throws. Shorten
+or hash only the refs over the limit and keep the stored ref for existing pairs:
+`check` under a new ref finds no consent. Returns the event's `at`.
 
 ### `withdraw`
 
@@ -177,7 +178,10 @@ interface ConsentOptions<TProof> {
 ```
 
 - `defaultVersion`: the version `record` stores when `opts.version` is omitted.
-  Default `"1"`. `check` does not use it; pass `requiredVersion` yourself.
+  Default `"1"`. At most 512 characters (Unicode code points), or `record`
+  without an explicit `version` throws `INVALID_ARGUMENT` for every new pair and
+  every pair whose current version differs. `check` does not use it; pass
+  `requiredVersion` yourself.
 - `proofValidator`: runs on the `proof` passed to `record` and `withdraw`
   (before storage) and on every `proof` returned by `history`. It must return a
   `TProof` or throw. Without it, proof is stored as given and cast to `TProof`
@@ -194,7 +198,8 @@ interface RecordOptions<TProof> {
 ```
 
 Options of `record`: the policy version of this decision (default: the client's
-`defaultVersion`) and the proof to store with it.
+`defaultVersion`; at most 512 characters for a new pair or a new version) and the
+proof to store with it.
 
 ### `ConsentDecision`
 
