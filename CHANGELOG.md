@@ -18,6 +18,11 @@ All notable changes to this project are documented here. The format is based on
   when a required file is missing from the tarball, when Markdown outside the shipped docs set (such
   as a contributor or internal doc) is packed, or when an `llms.txt` link does not resolve inside the
   tarball.
+- `pnpm test:package` imports every `package.json` `exports` entry point from the installed
+  tarball: it type-checks `.`, `./test`, `./convex.config`, `./convex.config.js`,
+  `./_generated/component` and `./_generated/component.js` (Bundler and NodeNext), imports
+  `.`, both `convex.config` entries and `./package.json` in Node, and fails when an exports key has
+  no coverage.
 - `pnpm check:docs` (run by `pnpm lint`) enforces the docs contract in
   `scripts/check-documentation.mjs`: README sections and order, install and first example in the
   first 40 lines, tagged code blocks, resolving relative links and anchors, every public export
