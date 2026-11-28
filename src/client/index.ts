@@ -140,6 +140,8 @@ interface RunMutationCtx {
  *   // process the personal data
  * }
  * ```
+ *
+ * @see https://oss.vllnt.com/packages/convex-consent
  */
 export class Consent<TProof = unknown> {
   private readonly defaultVersion: string;

@@ -1,5 +1,6 @@
 import { defineComponent } from "convex/server";
 
+/** The consent component definition: pass it to `app.use(...)` in the host `convex.config.ts`. */
 const component = defineComponent("consent");
 
 // Nest official child components here, e.g.:
