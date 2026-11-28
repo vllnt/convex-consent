@@ -184,6 +184,10 @@ export class Consent<TProof = unknown> {
    * to the client's `defaultVersion`; `opts.proof` is opaque host evidence
    * validated against `proofValidator` before storage. Returns the server
    * timestamp stamped on the event.
+   *
+   * @throws `ConvexError({ code: "INVALID_ARGUMENT" })` when `subjectRef`, `purpose`
+   *   or the version is empty, or longer than 512 characters (Unicode code points)
+   *   for a new pair or a new version.
    */
   record(
     ctx: RunMutationCtx,

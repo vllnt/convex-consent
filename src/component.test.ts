@@ -105,6 +105,10 @@ describe("consent component — ref length cap", () => {
     await t.mutation(api.mutations.record, base);
     expect(await errorCode(t.mutation(api.mutations.record, { ...base, version: overLimit }))).toBe("INVALID_ARGUMENT");
     expect(await t.query(api.queries.getState, { subjectRef: "u", purpose: "p" })).toMatchObject({ version: "1" });
+    const page = { numItems: 10, cursor: null };
+    expect(
+      (await t.query(api.queries.history, { subjectRef: "u", purpose: "p", paginationOpts: page })).page,
+    ).toHaveLength(1);
   });
 
   test("the empty-value check still runs first", async () => {

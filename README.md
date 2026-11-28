@@ -364,7 +364,9 @@ not a `ConvexError` from the component.
   Longer values throw `INVALID_ARGUMENT`, but only for a new pair or a version
   that differs from the pair's current one: a pair stored earlier with longer
   values stays readable, can be re-recorded with the same version, and
-  `withdraw` is never capped. Shorten or hash long refs before `record`.
+  `withdraw` is never capped. Shorten or hash long refs and versions before
+  `record`, but only those over the limit: `check` under a new ref finds no
+  consent, so keep the stored ref for existing pairs.
 - Ledger events are kept 365 days. Every mount has its own built-in cron that
   runs `prune` with batch 200 right after the mount is first deployed, then
   every 24 hours; redeploying an unchanged cron does not add a run. It cannot be

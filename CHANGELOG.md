@@ -31,7 +31,9 @@ All notable changes to this project are documented here. The format is based on
   long refs and versions before `record`. Pairs stored earlier with longer values stay readable
   through `check`, `getState`, `getStatesForSubject` and `history`, can be re-recorded with the
   same version and withdrawn (`withdraw` is not capped); re-recording one with a different
-  over-long version throws, and a new version of 512 or fewer is accepted.
+  over-long version throws, and a new version of 512 or fewer is accepted. Change only refs over
+  the limit and keep using the stored ref for existing pairs: `check` under a new ref finds no
+  consent. A subject stored with an over-long `subjectRef` cannot record a new purpose under it.
 - `engines.node` is now `>=20` (was `>=18`), what convex 1.45 itself requires. Run on Node.js 20
   or later, and 22 or later with convex 1.49 and newer.
 - The peer dependency is unchanged: `convex@^1.45.0`.

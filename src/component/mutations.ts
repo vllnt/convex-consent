@@ -22,7 +22,8 @@ function assertNonEmpty(fields: Record<string, string>): void {
  */
 function assertMaxLength(fields: Record<string, string>): void {
   for (const [name, value] of Object.entries(fields)) {
-    if ([...value].length > MAX_REF_LENGTH) {
+    // A string never has more code points than UTF-16 units, so short values skip the count.
+    if (value.length > MAX_REF_LENGTH && [...value].length > MAX_REF_LENGTH) {
       throw new ConvexError({
         code: "INVALID_ARGUMENT",
         message: `${name} must be at most ${MAX_REF_LENGTH} characters (Unicode code points)`,
