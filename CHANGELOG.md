@@ -38,6 +38,8 @@ All notable changes to this project are documented here. The format is based on
   stack; `homepage` points at the package page on oss.vllnt.com.
 - Internal: CI, tests, the release workflow (canary on every push to `main`, under the `canary`
   dist-tag only), package and docs checks, a 7-day release-age gate and dev-dependency upgrades.
+  CI gets pnpm from Corepack, the publish workflow runs the build and package test once (in the
+  publish job), and dependency updates are a manual pass under the 7-day rule (no update bot).
 
 ### Fixed
 
