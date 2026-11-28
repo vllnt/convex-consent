@@ -26,4 +26,13 @@ describe("consent component — indexes", () => {
     expect(states.map((s) => s.purpose)).toEqual(["analytics", "marketing"]);
     expect(states.every((s) => s.subjectRef === "u")).toBe(true);
   });
+
+  test("getStatesForSubject orders purposes by code unit, uppercase before lowercase", async () => {
+    const t = setup();
+    for (const purpose of ["ads", "Alpha", "beta"]) {
+      await t.mutation(api.mutations.record, { subjectRef: "o", purpose, decision: "granted", version: "1" });
+    }
+    const states = await t.query(api.queries.getStatesForSubject, { subjectRef: "o" });
+    expect(states.map((s) => s.purpose)).toEqual(["Alpha", "ads", "beta"]);
+  });
 });

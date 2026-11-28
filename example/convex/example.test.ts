@@ -1,6 +1,6 @@
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { api } from "./_generated/api";
+import { api, components } from "./_generated/api";
 import schema from "./schema";
 import { register } from "../../src/test";
 import crons, { PRUNE_BATCH, PRUNE_INTERVAL } from "../../src/component/crons";
@@ -178,6 +178,67 @@ describe("consent — version staleness", () => {
     expect(gate.granted).toBe(false);
     expect(gate.stale).toBe(false);
   });
+
+  test.each([
+    ["10", "2"],
+    ["3", "2"],
+  ])(
+    "a grant at %s checked against %s is stale (string inequality, not version order)",
+    async (stored, required) => {
+      const t = setup();
+      await t.mutation(api.example.record, {
+        subjectRef: "vs",
+        purpose: "analytics",
+        decision: "granted",
+        version: stored,
+      });
+      const gate = await t.query(api.example.check, {
+        subjectRef: "vs",
+        purpose: "analytics",
+        requiredVersion: required,
+      });
+      expect(gate.granted).toBe(false);
+      expect(gate.stale).toBe(true);
+      expect(gate.version).toBe(stored);
+    },
+  );
+
+  test("a withdrawn decision checked with a requiredVersion is neither stale nor granted", async () => {
+    const t = setup();
+    await t.mutation(api.example.record, {
+      subjectRef: "vw",
+      purpose: "analytics",
+      decision: "granted",
+      version: "1",
+    });
+    await t.mutation(api.example.withdraw, { subjectRef: "vw", purpose: "analytics" });
+    const gate = await t.query(api.example.check, {
+      subjectRef: "vw",
+      purpose: "analytics",
+      requiredVersion: "2",
+    });
+    expect(gate.decision).toBe("withdrawn");
+    expect(gate.granted).toBe(false);
+    expect(gate.stale).toBe(false);
+  });
+});
+
+describe("consent — server-sourced time", () => {
+  test("the component record mutation rejects a caller-supplied at", async () => {
+    const t = setup();
+    await expect(
+      t.mutation(components.consent.mutations.record, {
+        subjectRef: "clock",
+        purpose: "analytics",
+        decision: "granted",
+        version: "1",
+        at: 1,
+      } as never),
+    ).rejects.toThrow(/Unexpected field `at`/);
+    expect(
+      await t.query(api.example.getState, { subjectRef: "clock", purpose: "analytics" }),
+    ).toBeNull();
+  });
 });
 
 describe("consent — empty identifiers are rejected", () => {
@@ -303,6 +364,62 @@ describe("consent — withdraw (GDPR Art. 7(3))", () => {
         purpose: "analytics",
       }),
     ).rejects.toThrow(/not.*granted/);
+  });
+
+  test("withdraw keeps the grant's version, not the client defaultVersion", async () => {
+    const t = setup();
+    await t.mutation(api.example.record, {
+      subjectRef: "wv",
+      purpose: "analytics",
+      decision: "granted",
+      version: "2024",
+    });
+    await t.mutation(api.example.withdraw, { subjectRef: "wv", purpose: "analytics" });
+    const state = await t.query(api.example.getState, {
+      subjectRef: "wv",
+      purpose: "analytics",
+    });
+    expect(state?.decision).toBe("withdrawn");
+    expect(state?.version).toBe("2024");
+    const hist = await t.query(api.example.history, {
+      subjectRef: "wv",
+      purpose: "analytics",
+      paginationOpts: { cursor: null, numItems: 10 },
+    });
+    expect(hist.page.map((e) => [e.decision, e.version])).toEqual([
+      ["withdrawn", "2024"],
+      ["granted", "2024"],
+    ]);
+  });
+
+  test("record(..., \"withdrawn\") with no prior grant writes a withdrawn event and state (idempotent revoke)", async () => {
+    const t = setup();
+    for (const at of [0, 1]) {
+      vi.setSystemTime(at);
+      await t.mutation(api.example.record, {
+        subjectRef: "rw",
+        purpose: "analytics",
+        decision: "withdrawn",
+        version: "1",
+      });
+    }
+    const state = await t.query(api.example.getState, {
+      subjectRef: "rw",
+      purpose: "analytics",
+    });
+    expect(state).toEqual({
+      subjectRef: "rw",
+      purpose: "analytics",
+      decision: "withdrawn",
+      version: "1",
+      at: 1,
+    });
+    const hist = await t.query(api.example.history, {
+      subjectRef: "rw",
+      purpose: "analytics",
+      paginationOpts: { cursor: null, numItems: 10 },
+    });
+    expect(hist.page.map((e) => e.decision)).toEqual(["withdrawn", "withdrawn"]);
   });
 });
 
@@ -440,6 +557,62 @@ describe("consent — host proof validator + defaultVersion (strict client)", ()
       }),
     ).rejects.toThrow(/invalid proof/);
   });
+
+  test("the validator's output is stored, not the raw input", async () => {
+    const t = setup();
+    await t.mutation(api.example.recordStrict, {
+      subjectRef: "s_narrow",
+      purpose: "analytics",
+      proof: { policyHash: "abc", extra: "dropped" },
+    });
+    // read through the client without a validator: the stored value is the narrowed one
+    const hist = await t.query(api.example.history, {
+      subjectRef: "s_narrow",
+      purpose: "analytics",
+      paginationOpts: { cursor: null, numItems: 10 },
+    });
+    expect(hist.page[0]?.proof).toEqual({ policyHash: "abc" });
+  });
+
+  test("a stored proof the validator rejects makes history throw on read", async () => {
+    const t = setup();
+    // stored by the client without a validator
+    await t.mutation(api.example.record, {
+      subjectRef: "s_read",
+      purpose: "analytics",
+      decision: "granted",
+      version: "1",
+      proof: { policyHash: 123 },
+    });
+    await expect(
+      t.query(api.example.historyStrict, {
+        subjectRef: "s_read",
+        purpose: "analytics",
+        paginationOpts: { cursor: null, numItems: 10 },
+      }),
+    ).rejects.toThrow(/invalid proof/);
+  });
+
+  test("defaultVersion defaults to \"1\" when the client has no options", async () => {
+    const t = setup();
+    await t.mutation(api.example.record, {
+      subjectRef: "dv",
+      purpose: "analytics",
+      decision: "granted",
+    });
+    await t.mutation(api.example.recordMarketing, {
+      subjectRef: "dv",
+      purpose: "analytics",
+      decision: "granted",
+    });
+    expect(
+      (await t.query(api.example.getState, { subjectRef: "dv", purpose: "analytics" }))?.version,
+    ).toBe("1");
+    expect(
+      (await t.query(api.example.getMarketingState, { subjectRef: "dv", purpose: "analytics" }))
+        ?.version,
+    ).toBe("1");
+  });
 });
 
 describe("consent — mount-safety (independent named mount)", () => {
@@ -469,6 +642,48 @@ describe("consent — mount-safety (independent named mount)", () => {
       }))?.decision,
     ).toBe("denied");
     expect(await t.mutation(api.example.pruneMarketing, {})).toBe(0);
+  });
+
+  test("check and history are isolated between the default and marketing mounts", async () => {
+    const t = setup();
+    await t.mutation(api.example.record, {
+      subjectRef: "iso2",
+      purpose: "analytics",
+      decision: "granted",
+      version: "1",
+    });
+    await t.mutation(api.example.recordMarketing, {
+      subjectRef: "iso2",
+      purpose: "ads",
+      decision: "denied",
+    });
+    const pair = (purpose: string) => ({ subjectRef: "iso2", purpose });
+    const page = { paginationOpts: { cursor: null, numItems: 10 } };
+
+    // default mount sees only its own analytics grant
+    expect((await t.query(api.example.check, pair("analytics"))).granted).toBe(true);
+    expect((await t.query(api.example.check, pair("ads"))).decision).toBeNull();
+    expect(
+      (await t.query(api.example.history, { ...pair("analytics"), ...page })).page,
+    ).toHaveLength(1);
+    expect((await t.query(api.example.history, { ...pair("ads"), ...page })).page).toEqual([]);
+
+    // marketing mount sees only its own ads denial
+    const marketingCheck = await t.query(components.marketing.queries.check, pair("ads"));
+    expect(marketingCheck.decision).toBe("denied");
+    expect(marketingCheck.granted).toBe(false);
+    expect(
+      (await t.query(components.marketing.queries.check, pair("analytics"))).decision,
+    ).toBeNull();
+    const marketingHistory = await t.query(components.marketing.queries.history, {
+      ...pair("ads"),
+      ...page,
+    });
+    expect(marketingHistory.page.map((e) => e.decision)).toEqual(["denied"]);
+    expect(
+      (await t.query(components.marketing.queries.history, { ...pair("analytics"), ...page }))
+        .page,
+    ).toEqual([]);
   });
 });
 
@@ -527,17 +742,28 @@ describe("consent — prune (bounded, ledger-only, self-rescheduling)", () => {
     expect(await t.mutation(api.example.prune, {})).toBe(1);
   });
 
-  test.each([Number.NaN, 0, -1, 1.5, 501])("rejects invalid batch %s", async (batch) => {
+  test.each([1, 500])("accepts the batch bound %s", async (batch) => {
+    const t = setup();
+    await t.mutation(api.example.record, {
+      subjectRef: "b",
+      purpose: "analytics",
+      decision: "granted",
+      version: "1",
+    });
+    expect(await t.mutation(api.example.prune, { before: 1, batch })).toBe(1);
+  });
+
+  test.each([Number.NaN, 0, -1, 1.5, 501, Infinity])("rejects invalid batch %s", async (batch) => {
     const t = setup();
     await expect(t.mutation(api.example.prune, { batch })).rejects.toThrow(
       /INVALID_BATCH|integer between/,
     );
   });
 
-  test("rejects a non-finite cutoff", async () => {
+  test.each([Number.NaN, Infinity, -Infinity])("rejects the non-finite cutoff %s", async (before) => {
     const t = setup();
     await expect(
-      t.mutation(api.example.prune, { before: Number.NaN }),
+      t.mutation(api.example.prune, { before }),
     ).rejects.toThrow(/INVALID_BEFORE|finite/);
   });
 
@@ -575,6 +801,55 @@ describe("consent — prune (bounded, ledger-only, self-rescheduling)", () => {
       });
       expect(hist.page).toEqual([]);
     }
+  });
+
+  test("a tail that is an exact multiple of the batch is cleared and the sweep stops", async () => {
+    const t = setup();
+    for (let i = 0; i < 4; i++) {
+      vi.setSystemTime(i);
+      await t.mutation(api.example.record, {
+        subjectRef: "m",
+        purpose: "analytics",
+        decision: "granted",
+        version: "1",
+      });
+    }
+    vi.setSystemTime(1_000);
+    expect(await t.mutation(api.example.prune, { before: 1_000, batch: 2 })).toBe(2);
+    // the second full pass reschedules once more; the empty third pass stops
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const hist = await t.query(api.example.history, {
+      subjectRef: "m",
+      purpose: "analytics",
+      paginationOpts: { cursor: null, numItems: 10 },
+    });
+    expect(hist.page).toEqual([]);
+    expect(await t.mutation(api.example.prune, { before: 1_000, batch: 2 })).toBe(0);
+  });
+
+  test("the default batch is 200 and the scheduler clears the rest", async () => {
+    const t = setup();
+    for (let i = 0; i < 201; i++) {
+      vi.setSystemTime(i);
+      await t.mutation(api.example.record, {
+        subjectRef: "bulk",
+        purpose: "analytics",
+        decision: "granted",
+        version: "1",
+      });
+    }
+    vi.setSystemTime(1_000);
+    const history = () =>
+      t.query(api.example.history, {
+        subjectRef: "bulk",
+        purpose: "analytics",
+        paginationOpts: { cursor: null, numItems: 10 },
+      });
+    expect(await t.mutation(api.example.prune, { before: 1_000 })).toBe(200);
+    // oldest first: only the newest event survives the first pass
+    expect((await history()).page.map((e) => e.at)).toEqual([200]);
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect((await history()).page).toEqual([]);
   });
 });
 
